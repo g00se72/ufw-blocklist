@@ -108,6 +108,7 @@
 > `sudo ipset list ufw-blocklist-ipsum -t`\
 > `sudo iptables -L -nvx | grep ufw-blocklist-ipsum`\
 > `sudo journalctl -t ufw-blocklist-ipsum | tail`\
+> 
 > Примечание: Команда `sudo /etc/ufw/after.init status` может работать, но ее основное назначение - быть вызванной UFW.
 
 * **Сброс счетчиков (flush-all):** Чтобы сбросить счетчики пакетов в правилах `iptables` и очистить содержимое `ipset` (без его удаления), вы можете вызвать соответствующую команду. Опять же, это действие обычно инициируется через UFW или может быть выполнено вызовом скрипта в `/etc/ufw/after.init.d/` напрямую с аргументом `flush-all`.

@@ -67,15 +67,31 @@
    ```bash
    sudo chmod +x /etc/cron.daily/ufw-blocklist-ipsum-update
    ```
+   ```bash
+   sudo chmod +x /etc/ufw/after.init.d/05-ufw-whitelist.ufw
+   ```
    
 4. **Создайте начальный файл со списком блокировки (seed file):**
-   Скрипт `10-ufw-blocklist-ipsum.ufw` при запуске UFW пытается загрузить начальный список из файла `/etc/ipsum.4.txt`. Вы можете создать этот файл, скачав список вручную:
+   
+   Скрипт `10-ufw-blocklist-ipsum.ufw` при запуске UFW пытается загрузить начальный список из файла `/etc/ufw/ufw-blocklist1.txt`. Вы можете создать этот файл вручную или скачав список командой:
    ```bash
-   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/stamparm/ipsum/master/levels/4.txt' -o /etc/ipsum.4.txt
+   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/stamparm/ipsum/master/levels/4.txt' -o /etc/ufw/ufw-blocklist1.txt
    ```
    Примечание: Убедитесь, что URL соответствует вашим потребностям. Этот файл используется только для начального заполнения `ipset` при старте UFW. Ежедневное обновление будет использовать URL, указанный в конфигурационном файле.
+
+5. **Создайте начальный файл с белым списком:**  
+   ```bash
+   touch /etc/ufw/ufw-whitelist.txt
+   ```
+   Добавьте ваши IP/CIDR в белый список: Отредактируйте `/etc/ufw/ufw-whitelist.txt` и добавьте IP-адреса или подсети (по одному на строке), которые вы хотите всегда разрешать.
+
+   > [!NOTE]
+   > Пример содержимого:\
+   > 192.168.1.100
+   > 10.0.0.0/8
+   > 203.0.113.50
    
-5. **Перезапустите UFW:**
+7. **Перезапустите UFW:**
    ```bash
    sudo systemctl restart ufw
    ```

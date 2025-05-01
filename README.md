@@ -33,9 +33,14 @@
 
 ## Установка
 
-Предполагается, что у вас уже установлен и настроен UFW.
+Предполагается, что у вас уже установлен и настроен UFW, ipset.
 
-1. **Скопируйте файлы на свои места:**
+1. Создайте бэкап оригинального `after.init` скрипта UFW
+   ```bash
+   sudo cp /etc/ufw/after.init /etc/ufw/after.init.orig
+   ```
+
+2. **Скопируйте файлы на свои места:**
    ```bash
    sudo mkdir -p /etc/ufw/after.init.d
    ```
@@ -52,7 +57,7 @@
    sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/ufw-blocklist-ipsum-update' -o etc/cron.daily/ufw-blocklist-ipsum-update
    ```
    
-2. **Сделайте скрипты исполняемыми:**
+3. **Сделайте скрипты исполняемыми:**
    ```bash
    sudo chmod +x /etc/ufw/after.init
    ```
@@ -63,14 +68,14 @@
    sudo chmod +x /etc/cron.daily/ufw-blocklist-ipsum-update
    ```
    
-3. **Создайте начальный файл со списком блокировки (seed file):**
+4. **Создайте начальный файл со списком блокировки (seed file):**
    Скрипт `10-ufw-blocklist-ipsum.ufw` при запуске UFW пытается загрузить начальный список из файла `/etc/ipsum.4.txt`. Вы можете создать этот файл, скачав список вручную:
    ```bash
    sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/stamparm/ipsum/master/levels/4.txt' -o /etc/ipsum.4.txt
    ```
    Примечание: Убедитесь, что URL соответствует вашим потребностям. Этот файл используется только для начального заполнения `ipset` при старте UFW. Ежедневное обновление будет использовать URL, указанный в конфигурационном файле.
    
-4. **Перезапустите UFW:**
+5. **Перезапустите UFW:**
    ```bash
    sudo systemctl restart ufw
    ```

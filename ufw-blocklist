@@ -25,7 +25,7 @@ UFBL_WHITELIST_MAXELEM_HEADROOM=128
 # Each blocklist needs:
 # - UFBL_IPSET_NAME<Index>: Name of the ipset
 # - UFBL_SEED_FILE<Index>: Path to the initial seed file (for after.init.d)
-# - UFBL_MAXELEM_HEADROOM<Index>: Headroom for maxelem (optional, defaults to UFBL_DEFAULT_MAXELEM_HEADROOM if not set)
+# - UFBL_MAXELEM_HEADROOM<Index>: Headroom for maxelem (optional)
 # - UFBL_URL<Index>: URL for updates (for cron scripts)
 # - UFBL_MIN_ENTRIES<Index>: Minimum expected entries from URL (for cron scripts)
 # - UFBL_WARN_ON_NO_CHANGE<Index>: Warn on no change (yes/no) (for cron scripts)
@@ -35,8 +35,8 @@ UFBL_DEFAULT_MAXELEM_HEADROOM=128
 
 # --- Blocklist 1: Ipsum ---
 UFBL_IPSET_NAME1="ufw-blocklist-ipsum"
-UFBL_SEED_FILE1="/etc/ipsum.4.txt"
-# UFBL_MAXELEM_HEADROOM1=... # Optional, will use UFBL_DEFAULT_MAXELEM_HEADROOM if commented out
+UFBL_SEED_FILE1="/etc/ufw/ufw-blocklist1.txt"
+# UFBL_MAXELEM_HEADROOM1=... # UFBL_DEFAULT_MAXELEM_HEADROOM will be used if commented out
 UFBL_URL1='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt'
 UFBL_MIN_ENTRIES1=1000
 UFBL_WARN_ON_NO_CHANGE1="yes"

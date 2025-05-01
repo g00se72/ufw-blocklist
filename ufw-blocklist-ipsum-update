@@ -2,6 +2,8 @@
 #
 # This script will download the latest ipsum IP address list and update the
 # corresponding ipset. It reads configuration from /etc/default/ufw-blocklist.
+# It gets its specific blocklist settings from the central config file using index 1.
+# It filters out any IPs/CIDRs that are present in the whitelist ipset.
 # Use memory instead of file system to reduce writes to sd card.
 #
 # Install this file into /etc/cron.daily/ufw-blocklist-ipsum-update
@@ -14,17 +16,43 @@ else
     exit 1
 fi
 
-# Override default ipset name if necessary for this specific script
-UFBL_CURRENT_IPSET_NAME="${UFBL_DEFAULT_IPSET_NAME}"
-UFBL_CURRENT_LOGGER="${UFBL_LOGGER_CMD} -t ${UFBL_CURRENT_IPSET_NAME}"
+# --- Get Blocklist Specific Settings from Config (using index 1 for ipsum) ---
+# This script is responsible for updating Blocklist 1 as defined in the central config.
+# If you create a script for Blocklist 2, it would use index 2 (UFBL_IPSET_NAME2, etc.)
+UFBL_CURRENT_IPSET_NAME="${UFBL_IPSET_NAME1}"
+UFBL_IPSUM_URL="${UFBL_URL1}"
+UFBL_IPSUM_MIN_ENTRIES="${UFBL_MIN_ENTRIES1}"
+UFBL_IPSUM_WARN_ON_NO_CHANGE="${UFBL_WARN_ON_NO_CHANGE1}"
+# Use specific headroom if defined, otherwise use default
+UFBL_MAXELEM_HEADROOM=${UFBL_MAXELEM_HEADROOM1:-$UFBL_DEFAULT_MAXELEM_HEADROOM}
 
-# Check if the target ipset exists. Exit if not - ie no set to update
+
+UFBL_CURRENT_LOGGER="${UFBL_LOGGER_CMD} -t ${UFBL_CURRENT_IPSET_NAME}-update" # Add -update tag for clarity in logs
+
+# Check if the required variables were sourced from the config
+if [ -z "$UFBL_CURRENT_IPSET_NAME" ] || [ -z "$UFBL_IPSUM_URL" ] || [ -z "$UFBL_IPSUM_MIN_ENTRIES" ]; then
+    ${UFBL_CURRENT_LOGGER} -s "Error: Required blocklist update variables (UFBL_IPSET_NAME1, UFBL_URL1, UFBL_MIN_ENTRIES1) not set in config."
+    exit 1
+fi
+
+
+# Check if the target blocklist ipset exists. Exit if not.
 if ! "${UFBL_IPSET_BIN}" -t list "${UFBL_CURRENT_IPSET_NAME}" >/dev/null 2>&1; then
-	${UFBL_CURRENT_LOGGER} -s "ipset named ${UFBL_CURRENT_IPSET_NAME} does not exist. Is UFW started and the ipset created by after.init.d? Exiting."
+	${UFBL_CURRENT_LOGGER} -s "Blocklist ipset named ${UFBL_CURRENT_IPSET_NAME} does not exist. Is UFW started and the ipset created by after.init.d? Exiting."
 	exit 1
 fi
 
-# Get the current number of entries in the ipset
+# Check if the whitelist ipset exists. If not, log a warning and continue.
+# We can still update the blocklist, but filtering against the whitelist won't happen.
+UFBL_WHITELIST_EXISTS=false
+if ufbl_set_exists "$UFBL_WHITELIST_IPSET_NAME"; then
+    UFBL_WHITELIST_EXISTS=true
+else
+    ${UFBL_CURRENT_LOGGER} "Warning: Whitelist ipset named ${UFBL_WHITELIST_IPSET_NAME} does not exist. Whitelist filtering will be skipped during update."
+fi
+
+
+# Get the current number of entries in the blocklist ipset
 UFBL_CURRENT_IPSET_COUNT=$("${UFBL_IPSET_BIN}" list "${UFBL_CURRENT_IPSET_NAME}" | grep '^Number of entries:' | cut -d' ' -f4)
 
 ${UFBL_CURRENT_LOGGER} "Starting update of ${UFBL_CURRENT_IPSET_NAME} with ${UFBL_CURRENT_IPSET_COUNT} entries from ${UFBL_IPSUM_URL}"
@@ -57,31 +85,44 @@ if [ $UFBL_SCRUB_LIST_LEN -eq $UFBL_CURRENT_IPSET_COUNT ]; then
     fi
 fi
 
-# Create a temporary ipset
+# Create a temporary ipset for the NEW blocklist entries
 UFBL_TMP_SET_NAME="$(mktemp -u | cut -f2 -d'.')-tmp"
 # Calculate the maximum number of entries for the ipset using headroom
-UFBL_MAX_ELEM_COUNT=$(expr $UFBL_SCRUB_LIST_LEN + $UFBL_DEFAULT_MAXELEM_HEADROOM)
+UFBL_MAX_ELEM_COUNT=$(expr $UFBL_SCRUB_LIST_LEN + $UFBL_MAXELEM_HEADROOM) # Use the potentially overridden headroom
 
 if ! "${UFBL_IPSET_BIN}" -q create "$UFBL_TMP_SET_NAME" hash:net maxelem "$UFBL_MAX_ELEM_COUNT"; then
     UFBL_CREATE_RET=$?
-    ${UFBL_CURRENT_LOGGER} -s "Error code $UFBL_CREATE_RET creating temporary ipset $UFBL_TMP_SET_NAME. Exiting."
+    ${UFBL_CURRENT_LOGGER} -s "Error code $UFBL_CREATE_RET creating temporary blocklist ipset $UFBL_TMP_SET_NAME. Exiting."
     "${UFBL_IPSET_BIN}" -q destroy "$UFBL_TMP_SET_NAME" 2>/dev/null || true # Clean up if creation failed partially
     exit 1
 fi
 
-# Loop through each IP address/CIDR in the scrublist array and add it to the temporary ipset
+# Loop through each IP address/CIDR in the scrublist array and add it to the temporary blocklist ipset
+# Filter out whitelisted IPs/CIDRs
 UFBL_ADD_COUNT=0
 for UFBL_ENTRY in "${UFBL_SCRUB_LIST[@]}"; do
-    # Add the entry to the temporary ipset
-    #echo "Adding $UFBL_ENTRY to temporary ipset..." # Debug line
-    "${UFBL_IPSET_BIN}" add "$UFBL_TMP_SET_NAME" "$UFBL_ENTRY" 2>/dev/null || {
-        # Log errors if adding fails (e.g., invalid format despite regex, though less likely now)
-        ${UFBL_CURRENT_LOGGER} "Warning: Failed to add '$UFBL_ENTRY' to temporary ipset '$UFBL_TMP_SET_NAME'."
-    }
-	UFBL_ADD_COUNT=$((UFBL_ADD_COUNT+1))
+    # Check if the entry is in the whitelist ipset BEFORE adding to the blocklist
+    # Only attempt to test if the whitelist ipset exists
+    UFBL_IS_WHITELISTED=false
+    if [ "$UFBL_WHITELIST_EXISTS" = true ]; then
+        if "${UFBL_IPSET_BIN}" test "$UFBL_WHITELIST_IPSET_NAME" "$UFBL_ENTRY" 2>/dev/null; then
+            UFBL_IS_WHITELISTED=true
+            #echo "Skipping whitelisted IP/CIDR $UFBL_ENTRY from blocklist update." # Debug line
+        fi
+    fi
+
+    if [ "$UFBL_IS_WHITELISTED" = false ]; then
+        # Add the entry to the temporary blocklist ipset
+        #echo "Adding $UFBL_ENTRY to temporary blocklist ipset..." # Debug line
+        "${UFBL_IPSET_BIN}" add "$UFBL_TMP_SET_NAME" "$UFBL_ENTRY" 2>/dev/null || {
+            # Log errors if adding fails (e.g., invalid format despite regex, though less likely now)
+            ${UFBL_CURRENT_LOGGER} "Warning: Failed to add '$UFBL_ENTRY' to temporary blocklist ipset '$UFBL_TMP_SET_NAME'."
+        }
+	    UFBL_ADD_COUNT=$((UFBL_ADD_COUNT+1))
+    fi
 done
 
-# Swap the temporary ipset with the target ipset
+# Swap the temporary blocklist ipset with the target blocklist ipset
 if ! "${UFBL_IPSET_BIN}" swap "$UFBL_TMP_SET_NAME" "$UFBL_CURRENT_IPSET_NAME"; then
     UFBL_SWAP_RET=$?
     ${UFBL_CURRENT_LOGGER} -s "Error code $UFBL_SWAP_RET ipset swapping $UFBL_TMP_SET_NAME to $UFBL_CURRENT_IPSET_NAME. Exiting."
@@ -89,13 +130,13 @@ if ! "${UFBL_IPSET_BIN}" swap "$UFBL_TMP_SET_NAME" "$UFBL_CURRENT_IPSET_NAME"; t
     exit 1
 fi
 
-# Destroy the temporary ipset
+# Destroy the temporary blocklist ipset
 if ! "${UFBL_IPSET_BIN}" -q destroy "$UFBL_TMP_SET_NAME"; then
     UFBL_DESTROY_RET=$?
-    ${UFBL_CURRENT_LOGGER} -s "Error code $UFBL_DESTROY_RET destroying ipset $UFBL_TMP_SET_NAME. Manual cleanup may be required."
+    ${UFBL_CURRENT_LOGGER} -s "Error code $UFBL_DESTROY_RET destroying temporary blocklist ipset $UFBL_TMP_SET_NAME. Manual cleanup may be required."
     # Continue execution as the swap was successful, but log the cleanup failure
 fi
 
-${UFBL_CURRENT_LOGGER} "Finished updating ${UFBL_CURRENT_IPSET_NAME}. Old entry count: ${UFBL_CURRENT_IPSET_COUNT} New count: ${UFBL_ADD_COUNT} of ${UFBL_SCRUB_LIST_LEN} processed entries."
+${UFBL_CURRENT_LOGGER} "Finished updating ${UFBL_CURRENT_IPSET_NAME}. Old entry count: ${UFBL_CURRENT_IPSET_COUNT} New count: ${UFBL_ADD_COUNT} of ${UFBL_SCRUB_LIST_LEN} processed entries (excluding whitelisted)."
 
 exit 0

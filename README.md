@@ -45,16 +45,16 @@
    sudo mkdir -p /etc/ufw/after.init.d
    ```
    ```bash
-   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/ufw-blocklist' -o etc/default/ufw-blocklist
+   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/main/ufw-blocklist' -o /etc/default/ufw-blocklist
    ```
    ```bash
-   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/after.init' -o etc/ufw/after.init
+   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/main/after.init' -o /etc/ufw/after.init
    ```
    ```bash
-   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/10-ufw-blocklist-ipsum.ufw' -o etc/ufw/after.init.d/10-ufw-blocklist-ipsum.ufw
+   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/main/10-ufw-blocklist-ipsum.ufw' -o /etc/ufw/after.init.d/10-ufw-blocklist-ipsum.ufw
    ```
    ```bash
-   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/ufw-blocklist-ipsum-update' -o etc/cron.daily/ufw-blocklist-ipsum-update
+   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/main/ufw-blocklist-ipsum-update' -o /etc/cron.daily/ufw-blocklist-ipsum-update
    ```
    
 3. **Сделайте скрипты исполняемыми:**

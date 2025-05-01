@@ -1,106 +1,94 @@
-# ufw-blocklist
-Add an IP blocklist to ufw, the uncomplicated Ubuntu firewall
-* integrates into ufw for pure Ubuntu
-* blocks inbound, outbound and forwarding packets
-* uses [Linux ipsets](https://ipset.netfilter.org/) for kernel-grade performance
-* the IP blocklist is refreshed daily
-* the IP blocklist is sourced from [IPsum](https://github.com/stamparm/ipsum)
-* ufw-blocklist is tested on:
-  * Armbian 22.05.3 Focal (based on Ubuntu 20.04.4 LTS (Focal Fossa))
-  * Ubuntu 22.04 LTS (Jammy Jellyfish)
-  * Ubuntu 24.04 LTS (Noble Numbat) - reported by @koenr
+# UFW Blocklist: Расширение для блокировки IP-адресов и CIDR
+Данный репозиторий - это моя версия на основе репозитория от уважаемого [poddmo](https://github.com/poddmo/ufw-blocklist)
 
-**This blocklist is _very_ successful at dropping a lot of uninvited traffic.** It has been intentionally designed to be very light on resource requirements and zero maintenance as the initial target platform was a single-board computer operating as a home internet gateway. After the initial installation, there are no further writes to the storage system to preserve solid state storage. I would now highly recommend it for any Ubuntu host that has a public IP address or is otherwise exposed directly to the internet, for example, by port forwarding.
+> [!NOTE]
+>   
+> ***Реализация сделана исключительно для себя, в научно-технических целях. Т.к. пишу и тестирую сам, то возможно мне удается проверить не все возможные сценарии использования***
 
-# Installation
-Install the ipset package
-```
-sudo apt install ipset
-```
+## Описание
+Проект предоставляет набор скриптов для интеграции динамических списков блокировки IP-адресов и CIDR с файрволом UFW (Uncomplicated Firewall) в Ubuntu. Используя `ipset`, скрипты позволяют эффективно блокировать большие объемы вредоносного трафика на уровне ядра.
+Проект состоит из нескольких компонентов, работающих вместе для управления списками блокировки:
 
-Backup the original ufw `after.init` example script
-```
-sudo cp /etc/ufw/after.init /etc/ufw/after.init.orig
-```
+1. **`/etc/ufw/after.init`**: Основной скрипт, который запускается UFW после своей инициализации. Он действует как "раннер", выполняя все скрипты, расположенные в директории `/etc/ufw/after.init.d/`. Это обеспечивает модульность и позволяет легко добавлять или удалять различные списки блокировки.
 
-Install the ufw-blocklist files
-```
-git clone https://github.com/poddmo/ufw-blocklist.git
-cd ufw-blocklist
-sudo cp after.init /etc/ufw/after.init
-sudo cp ufw-blocklist-ipsum /etc/cron.daily/ufw-blocklist-ipsum
-sudo chown root:root /etc/ufw/after.init /etc/cron.daily/ufw-blocklist-ipsum
-sudo chmod 750 /etc/ufw/after.init /etc/cron.daily/ufw-blocklist-ipsum
-```
+2. **`/etc/ufw/after.init.d/`**: Директория, содержащая исполняемые скрипты, которые выполняются основным скриптом `after.init`. Каждый скрипт в этой директории может отвечать за инициализацию отдельного списка блокировки (`ipset`) и настройку соответствующих правил `iptables`. Скрипты именуются с числовым префиксом (например, `10-`, `20-`) для контроля порядка выполнения.
 
-Download an initial IP blocklist from [IPsum](https://github.com/stamparm/ipsum)
-```
-curl -sS -f --compressed -o ipsum.4.txt 'https://raw.githubusercontent.com/stamparm/ipsum/master/levels/4.txt'
-sudo chmod 640 ipsum.4.txt
-sudo cp ipsum.4.txt /etc/ipsum.4.txt
-```
-Start ufw-blocklist
-```
-sudo /etc/ufw/after.init start
-```
-It takes time to load the blocklist entries into the ipset. Watch the progress with 
-```
-sudo ipset list ufw-blocklist-ipsum -terse | grep 'Number of entries'
-```
+3. **`/etc/cron.daily/ufw-blocklist-*-update`**: Скрипты для ежедневного обновления списков блокировки. Они скачивают актуальные списки из внешних источников (например, из проекта ipsum), валидируют их и атомарно обновляют соответствующие `ipset` без прерывания работы файрвола.
 
-# Usage
-The blocklist is automatically started and stopped by ufw using the enable, disable and reload options. See the [Ubuntu UFW wiki page](https://help.ubuntu.com/community/UFW) for help getting started with ufw.
+4. **`/etc/default/ufw-blocklist`**: Централизованный конфигурационный файл, содержащий общие настройки для всех скриптов проекта, такие как пути к исполняемым файлам (`ipset`), настройки журналирования, регулярные выражения для валидации CIDR и параметры по умолчанию для списков блокировки.
 
-There are 2 additional `after.init` commands available: status and flush-all
-- The **status** option shows the count of entries in the blocklist, the hit count of packets that have been blocked and the last 10 log entries. The status option is further explained in the [Status](#status) section below.
-- The **flush-all** option deletes all entries in the blocklist and zeros the iptables hit counters:
-```
-sudo /etc/ufw/after.init flush-all
-```
-From this state you can manually add IP addresses to the list like this:
-```
-sudo ipset add ufw-blocklist-ipsum a.b.c.d
-```
-This is useful for testing. Use `/etc/cron.daily/ufw-blocklist-ipsum` to download the latest list and fully restore the blocklist.
+## Возможности
 
-# Status
-Calling `after.init` with the status option displays the current count of the entries in the blocklist, the hit counts on the firewall rules (column 1 is hits, column 2 is bytes) and the last 10 log messages. Here is a sample output:
-```
-user@ubunturouter:~# sudo /etc/ufw/after.init status
-Name: ufw-blocklist-ipsum
-Type: hash:net
-Revision: 6
-Header: family inet hashsize 4096 maxelem 65536
-Size in memory: 357312
-References: 3
-Number of entries: 12789
-   76998  4403836 ufw-blocklist-input  all  --  *      *       0.0.0.0/0            0.0.0.0/0            match-set ufw-blocklist-ipsum src
-       4      160 ufw-blocklist-forward  all  --  *      *       0.0.0.0/0            0.0.0.0/0            match-set ufw-blocklist-ipsum dst
-      11      868 ufw-blocklist-output  all  --  *      *       0.0.0.0/0            0.0.0.0/0            match-set ufw-blocklist-ipsum dst
-Sep 24 06:25:01 ubunturouter ufw-blocklist-ipsum[535172]: starting update of ufw-blocklist-ipsum with 12654 entries from https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt
-Sep 24 06:26:02 ubunturouter ufw-blocklist-ipsum[547387]: finished updating ufw-blocklist-ipsum. Old entry count: 12654 New count: 12181 of 12181
-Sep 24 22:23:21 ubunturouter kernel: [UFW BLOCKLIST FORWARD] IN=eth1 OUT=ppp0 MAC=11:22:33:44:55:66:77:88:99:00:aa:bb:cc:dd SRC=192.168.1.11 DST=194.165.16.37 LEN=40 TOS=0x00 PREC=0x00 TTL=62 ID=0 DF PROTO=TCP SPT=51413 DPT=65058 WINDOW=0 RES=0x00 ACK RST URGP=0
-Sep 25 06:25:02 ubunturouter ufw-blocklist-ipsum[598717]: starting update of ufw-blocklist-ipsum with 12181 entries from https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt
-Sep 25 06:26:07 ubunturouter ufw-blocklist-ipsum[611761]: finished updating ufw-blocklist-ipsum. Old entry count: 12181 New count: 13008 of 13008
-Sep 25 21:19:42 ubunturouter kernel: [UFW BLOCKLIST FORWARD] IN=eth1 OUT=ppp0 MAC=11:22:33:44:55:66:77:88:99:00:aa:bb:cc:dd SRC=192.168.1.11 DST=45.227.254.8 LEN=40 TOS=0x00 PREC=0x00 TTL=62 ID=0 DF PROTO=TCP SPT=51413 DPT=65469 WINDOW=0 RES=0x00 ACK RST URGP=0
-Sep 25 21:19:45 ubunturouter kernel: [UFW BLOCKLIST FORWARD] IN=eth1 OUT=ppp0 MAC=11:22:33:44:55:66:77:88:99:00:aa:bb:cc:dd SRC=192.168.1.11 DST=45.227.254.8 LEN=40 TOS=0x00 PREC=0x00 TTL=62 ID=0 DF PROTO=TCP SPT=51413 DPT=65469 WINDOW=0 RES=0x00 ACK RST URGP=0
-Sep 25 21:19:51 ubunturouter kernel: [UFW BLOCKLIST FORWARD] IN=eth1 OUT=ppp0 MAC=11:22:33:44:55:66:77:88:99:00:aa:bb:cc:dd SRC=192.168.1.11 DST=45.227.254.8 LEN=40 TOS=0x00 PREC=0x00 TTL=62 ID=0 DF PROTO=TCP SPT=51413 DPT=65469 WINDOW=0 RES=0x00 ACK RST URGP=0
-Sep 26 06:25:02 ubunturouter ufw-blocklist-ipsum[661335]: starting update of ufw-blocklist-ipsum with 13008 entries from https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt
-Sep 26 06:26:06 ubunturouter ufw-blocklist-ipsum[674158]: finished updating ufw-blocklist-ipsum. Old entry count: 13008 New count: 12789 of 12789
-```
-- Hits on the OUTPUT or FORWARD drop rules may indicate an issue with an internal host and are logged. In the example status shown above, the hits on the FORWARD rule are related to an internal torrent client.
-- INPUT hits are not logged. The status output above shows **76998 dropped INPUT packets** after the system has been up 9 days, 22:45 hours.
+* **Эффективная блокировка:** Использование `ipset` позволяет блокировать тысячи и миллионы IP-адресов/CIDR с минимальной нагрузкой на систему.
 
-# Todo
-These scripts have run flawlessly for 4 years. The next steps are to generalise the blocklist case to arbitrary ipsets, for example, to block bogans or by geoblock
-- move config to /etc/defaults/ufw-blocklist
-  - refactor code: centralise config, rename/standardise variables
-- rework scripts to handle multiple blocklists: move after.init_run-parts into after.init, create lighter version of after.init to run from after.init.d
-- test and document geo-block example for blocking geographic subnets. Geo-based blocks are useful for blocking botnets or "citizen activists." Geo-based subnets can be found at:
-  - https://www.ip2location.com/free/visitor-blocker
-  - https://www.ipdeny.com/ipblocks/
-- test and document blocking bogan IP addresses. Bogon lists can be found at:
-  - FireHOL includes fullbogons: https://iplists.firehol.org/
-  - so does team Cymru. See fullbogons at: https://www.team-cymru.com/bogon-reference-http
-- develop a whitelist: firstly for anti-lockout protection when using bogon blocklistsa and then aim for a principle of least privilige position starting from deny all and only allowing from whitelists
-- develop test of entries as valid cidr addresses - replace existing ip address regex with cidr address regex
+* **Модульность:** Легкое добавление поддержки новых списков блокировки путем создания новых скриптов в `/etc/ufw/after.init.d/` и `/etc/cron.daily/`.
+
+* **Автоматическое обновление:** Ежедневное обновление списков блокировки через cron.
+
+* **Централизованная конфигурация:** Удобное управление основными параметрами через единый файл.
+
+* **Надежная валидация:** Проверка записей на соответствие формату CIDR перед добавлением в `ipset`.
+
+* **Совместимость с UFW:** Бесшовная интеграция с механизмом `after.init` файрвола UFW.
+
+## Установка
+
+Предполагается, что у вас уже установлен и настроен UFW.
+
+1. **Скопируйте файлы на свои места:**
+   ```bash
+   sudo mkdir -p /etc/ufw/after.init.d
+   ```
+   ```bash
+   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/ufw-blocklist' -o etc/default/ufw-blocklist
+   ```
+   ```bash
+   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/after.init' -o etc/ufw/after.init
+   ```
+   ```bash
+   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/10-ufw-blocklist-ipsum.ufw' -o etc/ufw/after.init.d/10-ufw-blocklist-ipsum.ufw
+   ```
+   ```bash
+   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/ufw-blocklist-ipsum-update' -o etc/cron.daily/ufw-blocklist-ipsum-update
+   ```
+   
+2. **Сделайте скрипты исполняемыми:**
+   ```bash
+   sudo chmod +x /etc/ufw/after.init
+   ```
+   ```bash
+   sudo chmod +x /etc/ufw/after.init.d/10-ufw-blocklist-ipsum.ufw
+   ```
+   ```bash
+   sudo chmod +x /etc/cron.daily/ufw-blocklist-ipsum-update
+   ```
+   
+3. **Создайте начальный файл со списком блокировки (seed file):**
+   Скрипт `10-ufw-blocklist-ipsum.ufw` при запуске UFW пытается загрузить начальный список из файла `/etc/ipsum.4.txt`. Вы можете создать этот файл, скачав список вручную:
+   ```bash
+   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/stamparm/ipsum/master/levels/4.txt' -o /etc/ipsum.4.txt
+   ```
+   Примечание: Убедитесь, что URL соответствует вашим потребностям. Этот файл используется только для начального заполнения `ipset` при старте UFW. Ежедневное обновление будет использовать URL, указанный в конфигурационном файле.
+   
+4. **Перезапустите UFW:**
+   ```bash
+   sudo systemctl restart ufw
+   ```
+   Это запустит скрипт `/etc/ufw/after.init`, который в свою очередь запустит скрипты из `/etc/ufw/after.init.d/`, включая `10-ufw-blocklist-ipsum.ufw`. Скрипт `10-ufw-blocklist-ipsum.ufw` создаст `ipset` и добавит в него записи из `/etc/ipsum.4.txt`, а также настроит правила `iptables`.
+
+## Конфигурация
+Основной файл конфигурации находится по адресу `/etc/default/ufw-blocklist`. Вы можете редактировать его для изменения следующих параметров:
+* `UFBL_IPSET_BIN`: Путь к исполняемому файлу `ipset`
+* `UFBL_LOGGER_CMD`: Команда для журналирования (по умолчанию использует `logger`)
+* `UFBL_DEFAULT_IPSET_NAME`: Имя `ipset` по умолчанию (используется скриптами, если не переопределено)
+* `UFBL_DEFAULT_SEED_FILE`: Путь к файлу начального заполнения по умолчанию
+* `UFBL_DEFAULT_MAXELEM_HEADROOM`: Дополнительное место в `ipset` сверх количества записей в списке
+* `UFBL_IPSUM_URL`: URL для скачивания списка блокировки `ipsum` (используется скриптом обновления)
+* `UFBL_IPSUM_MIN_ENTRIES`: Минимальное ожидаемое количество записей в списке `ipsum`
+* `UFBL_IPSUM_WARN_ON_NO_CHANGE`: Включает/отключает предупреждение, если количество записей не изменилось (`yes`/`no`)
+* `UFBL_CIDR_REGEX`: Регулярное выражение для валидации записей как CIDR (IPv4)
+
+**Для добавления поддержки нового списка блокировки:**
+1. Создайте новый скрипт в `/etc/ufw/after.init.d/` (например, `20-myotherlist.ufw`), который будет создавать и наполнять соответствующий `ipset` и добавлять правила `iptables`. Этот скрипт должен использовать функции и переменные из `/etc/default/ufw-blocklist`.
+2. Создайте соответствующий скрипт ежедневного обновления в `/etc/cron.daily/` (например, `ufw-blocklist-myotherlist-update`), который будет скачивать и обновлять новый `ipset`.
+3. При необходимости добавьте специфические параметры для нового списка в `/etc/default/ufw-blocklist` или переопределите их в скриптах нового списка.

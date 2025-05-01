@@ -107,7 +107,7 @@
 > Пример просмотра статуса `ipset` и правил для `ipsum`:\
 > `sudo ipset list ufw-blocklist-ipsum -t`\
 > `sudo iptables -L -nvx | grep ufw-blocklist-ipsum`\
-> `sudo journalctl -t ufw-blocklist-ipsum | tail`\
+> `sudo journalctl -t ufw-blocklist-ipsum | tail`
 > 
 > Примечание: Команда `sudo /etc/ufw/after.init status` может работать, но ее основное назначение - быть вызванной UFW.
 

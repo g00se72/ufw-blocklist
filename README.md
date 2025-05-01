@@ -54,6 +54,9 @@
    sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/main/10-ufw-blocklist-ipsum.ufw' -o /etc/ufw/after.init.d/10-ufw-blocklist-ipsum.ufw
    ```
    ```bash
+   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/main/05-ufw-whitelist.ufw' -o /etc/ufw/after.init.d/05-ufw-whitelist.ufw
+   ```
+   ```bash
    sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/main/ufw-blocklist-ipsum-update' -o /etc/cron.daily/ufw-blocklist-ipsum-update
    ```
    

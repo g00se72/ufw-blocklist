@@ -1,6 +1,7 @@
 #!/bin/bash
 #
 # Configuration file for ufw-blocklist scripts
+# Source this file at the beginning of your scripts.
 #
 # This file should be placed at /etc/default/ufw-blocklist
 
@@ -10,25 +11,47 @@ UFBL_IPSET_BIN="/sbin/ipset"
 # logger command prefix
 UFBL_LOGGER_CMD="/usr/bin/logger -t ufw-blocklist"
 
-# --- Default Blocklist Settings (for ipsum example) ---
-# Default ipset name. Scripts can override this if managing multiple sets.
-UFBL_DEFAULT_IPSET_NAME="ufw-blocklist-ipsum"
-# Default seed file path for initial ipset population (used by after.init.d scripts)
-UFBL_DEFAULT_SEED_FILE="/etc/ipsum.4.txt"
-# Default headroom for maxelem when creating ipsets
+# --- Whitelist Settings ---
+# ipset name for the whitelist
+UFBL_WHITELIST_IPSET_NAME="ufw-whitelist"
+# File containing IP addresses/CIDRs to always allow, one per line
+UFBL_WHITELIST_FILE="/etc/ufw/ufw-whitelist.txt"
+# Headroom for maxelem for the whitelist ipset
+UFBL_WHITELIST_MAXELEM_HEADROOM=128
+
+
+# --- Blocklist Definitions ---
+# Define multiple blocklists using indexed variables.
+# Each blocklist needs:
+# - UFBL_IPSET_NAME<Index>: Name of the ipset
+# - UFBL_SEED_FILE<Index>: Path to the initial seed file (for after.init.d)
+# - UFBL_MAXELEM_HEADROOM<Index>: Headroom for maxelem (optional, defaults to UFBL_DEFAULT_MAXELEM_HEADROOM if not set)
+# - UFBL_URL<Index>: URL for updates (for cron scripts)
+# - UFBL_MIN_ENTRIES<Index>: Minimum expected entries from URL (for cron scripts)
+# - UFBL_WARN_ON_NO_CHANGE<Index>: Warn on no change (yes/no) (for cron scripts)
+
+# Default headroom for maxelem if not specified for a specific blocklist
 UFBL_DEFAULT_MAXELEM_HEADROOM=128
 
-# --- Daily Update Script Settings (ufw-blocklist-ipsum-update) ---
-# URL for the blocklist source (used by update scripts)
-UFBL_IPSUM_URL='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt'
-# Minimum number of entries expected from the source URL
-UFBL_IPSUM_MIN_ENTRIES=1000
-# Warn if the number of entries hasn't changed (yes/no)
-UFBL_IPSUM_WARN_ON_NO_CHANGE="yes"
+# --- Blocklist 1: Ipsum ---
+UFBL_IPSET_NAME1="ufw-blocklist-ipsum"
+UFBL_SEED_FILE1="/etc/ipsum.4.txt"
+# UFBL_MAXELEM_HEADROOM1=... # Optional, will use UFBL_DEFAULT_MAXELEM_HEADROOM if commented out
+UFBL_URL1='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt'
+UFBL_MIN_ENTRIES1=1000
+UFBL_WARN_ON_NO_CHANGE1="yes"
+
+# --- Blocklist 2: Example Another List ---
+# UFBL_IPSET_NAME2="ufw-blocklist-another"
+# UFBL_SEED_FILE2="/etc/anotherlist.txt"
+# UFBL_MAXELEM_HEADROOM2=256 # Example of overriding headroom
+# UFBL_URL2='http://example.com/anotherlist.txt'
+# UFBL_MIN_ENTRIES2=500
+# UFBL_WARN_ON_NO_CHANGE2="no"
+
 
 # --- CIDR Validation Regex ---
 # Regex to validate IPv4 CIDR notation (e.g., 192.168.1.0/24 or 10.0.0.1)
-# This regex is more strict than the previous one.
 UFBL_CIDR_REGEX='^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/(3[0-2]|[012]?[0-9]))?$'
 
 # --- Function to check if a chain exists ---

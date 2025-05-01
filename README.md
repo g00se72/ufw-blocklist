@@ -99,17 +99,17 @@
 Более надежный способ получить статус конкретного списка (например, `ipsum`) - это посмотреть логи или использовать команды `ipset` и `iptables` напрямую, как это делает скрипт `10-ufw-blocklist-ipsum.ufw` в своем блоке `status`.
 
 > [!NOTE]
-> Пример просмотра статуса ipset и правил для ipsum:\
-> sudo ipset list ufw-blocklist-ipsum -t\
-> sudo iptables -L -nvx | grep ufw-blocklist-ipsum\
-> sudo journalctl -t ufw-blocklist-ipsum | tail\
+> Пример просмотра статуса `ipset` и правил для `ipsum`:\
+> `sudo ipset list ufw-blocklist-ipsum -t`\
+> `sudo iptables -L -nvx | grep ufw-blocklist-ipsum`\
+> `sudo journalctl -t ufw-blocklist-ipsum | tail`\
 > Примечание: Команда `sudo /etc/ufw/after.init status` может работать, но ее основное назначение - быть вызванной UFW.
 
 * **Сброс счетчиков (flush-all):** Чтобы сбросить счетчики пакетов в правилах `iptables` и очистить содержимое `ipset` (без его удаления), вы можете вызвать соответствующую команду. Опять же, это действие обычно инициируется через UFW или может быть выполнено вызовом скрипта в `/etc/ufw/after.init.d/` напрямую с аргументом `flush-all`.
 
 > [!NOTE]
-> Пример вызова flush-all для ipsum:\
-> sudo /etc/ufw/after.init.d/10-ufw-blocklist-ipsum.ufw flush-all
+> Пример вызова `flush-all` для `ipsum`:\
+> `sudo /etc/ufw/after.init.d/10-ufw-blocklist-ipsum.ufw flush-all`
 
 Будьте осторожны с прямым вызовом скриптов в `after.init.d/` и основного `after.init`. Их основное предназначение - быть частью жизненного цикла UFW.
 

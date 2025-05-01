@@ -1,0 +1,71 @@
+#!/bin/sh
+#
+# after.init: if executable, called by ufw-init. See 'man ufw-framework' for
+#             details. Note that output from these scripts is not seen via the
+#             the ufw command, but instead via ufw-init.
+#
+# This script acts as a runner for scripts placed in /etc/ufw/after.init.d/
+# This allows multiple blocklist or other custom initialisation scripts to be
+# executed by ufw after it starts.
+#
+# Install this script executable as /etc/ufw/after.init
+# Install user scripts to be run after ufw has initialised into /etc/ufw/after.init.d/
+# ** Scripts will run with ufw privilege, ie root **
+# Script names must match the filename format: numbernumber-*.ufw
+# Order of execution is critical. Lower (00) numbered scripts will execute first
+# Higher numbered scripts have higher precedence
+# Example filenames: 10-ipblocklist-ipsum.ufw, 20-subnetblocklist.ufw
+#
+set -e
+
+# Source the configuration file (optional for this script, but good practice)
+if [ -f /etc/default/ufw-blocklist ]; then
+    . /etc/default/ufw-blocklist
+fi
+
+UFBL_AFTER_INIT_DIR='/etc/ufw/after.init.d'
+
+if [ ! -d "$UFBL_AFTER_INIT_DIR" ]; then
+	# Use logger from config if sourced, otherwise just echo
+	if command -v "${UFBL_LOGGER_CMD%% *}" >/dev/null 2>&1; then
+		${UFBL_LOGGER_CMD} -s "$UFBL_AFTER_INIT_DIR does not exist. No after.init.d scripts to run."
+	else
+		echo "ufw after.init: $UFBL_AFTER_INIT_DIR does not exist. No after.init.d scripts to run."
+	fi
+	exit 0
+fi
+
+# Function to run scripts in after.init.d
+# Passes the ufw action (start, stop, status, flush-all) as the first argument
+ufbl_run_after_init_scripts () {
+	# run-parts --report executes scripts alphabetically, which matches our naming convention
+	# --regex='^[0-9]{2}-.*.ufw$' ensures only correctly named scripts are run
+	# --arg="$1" passes the ufw action to the scripts
+	run-parts --report --regex='^[0-9]{2}-.*.ufw$' --arg="$1" "${UFBL_AFTER_INIT_DIR}"
+	exit $? # Exit with the status of run-parts
+}
+
+# Execute the appropriate action based on the argument passed by ufw-init
+case "$1" in
+start)
+    ufbl_run_after_init_scripts start
+    ;;
+stop)
+    ufbl_run_after_init_scripts stop
+    ;;
+status)
+    ufbl_run_after_init_scripts status
+    ;;
+flush-all)
+    ufbl_run_after_init_scripts flush-all
+    ;;
+*)
+    # Use logger from config if sourced, otherwise just echo
+    if command -v "${UFBL_LOGGER_CMD%% *}" >/dev/null 2>&1; then
+		${UFBL_LOGGER_CMD} -s "Unsupported action '$1' passed to /etc/ufw/after.init. Usage: {start|stop|flush-all|status}"
+	else
+		echo "ufw after.init: Unsupported action '$1'. Usage: {start|stop|flush-all|status}"
+	fi
+    exit 1 # Exit with an error code for unsupported actions
+    ;;
+esac

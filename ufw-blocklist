@@ -1,0 +1,55 @@
+#!/bin/bash
+#
+# Configuration file for ufw-blocklist scripts
+#
+# This file should be placed at /etc/default/ufw-blocklist
+
+# --- General Settings ---
+# ipset executable path
+UFBL_IPSET_BIN="/sbin/ipset"
+# logger command prefix
+UFBL_LOGGER_CMD="/usr/bin/logger -t ufw-blocklist"
+
+# --- Default Blocklist Settings (for ipsum example) ---
+# Default ipset name. Scripts can override this if managing multiple sets.
+UFBL_DEFAULT_IPSET_NAME="ufw-blocklist-ipsum"
+# Default seed file path for initial ipset population (used by after.init.d scripts)
+UFBL_DEFAULT_SEED_FILE="/etc/ipsum.4.txt"
+# Default headroom for maxelem when creating ipsets
+UFBL_DEFAULT_MAXELEM_HEADROOM=128
+
+# --- Daily Update Script Settings (ufw-blocklist-ipsum-update) ---
+# URL for the blocklist source (used by update scripts)
+UFBL_IPSUM_URL='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt'
+# Minimum number of entries expected from the source URL
+UFBL_IPSUM_MIN_ENTRIES=1000
+# Warn if the number of entries hasn't changed (yes/no)
+UFBL_IPSUM_WARN_ON_NO_CHANGE="yes"
+
+# --- CIDR Validation Regex ---
+# Regex to validate IPv4 CIDR notation (e.g., 192.168.1.0/24 or 10.0.0.1)
+# This regex is more strict than the previous one.
+UFBL_CIDR_REGEX='^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/(3[0-2]|[012]?[0-9]))?$'
+
+# --- Function to check if a chain exists ---
+# Usage: ufbl_chain_exists <chain_name> [table]
+ufbl_chain_exists() {
+    [ $# -lt 1 -o $# -gt 2 ] && {
+        echo "Usage: ufbl_chain_exists <chain_name> [table]" >&2
+        return 1
+    }
+    local chain_name="$1" ; shift
+    [ $# -eq 1 ] && local table="--table $1"
+    iptables $table -n --list "$chain_name" >/dev/null 2>&1
+}
+
+# --- Function to check if an set exists ---
+# Usage: ufbl_set_exists <set_name>
+ufbl_set_exists() {
+    [ $# -ne 1 ] && {
+        echo "Usage: ufbl_set_exists <set_name>" >&2
+        return 1
+    }
+    local set_name="$1"
+    "${UFBL_IPSET_BIN}" list "$set_name" -name >/dev/null 2>&1
+}

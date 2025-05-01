@@ -1,0 +1,101 @@
+#!/bin/bash
+#
+# This script will download the latest ipsum IP address list and update the
+# corresponding ipset. It reads configuration from /etc/default/ufw-blocklist.
+# Use memory instead of file system to reduce writes to sd card.
+#
+# Install this file into /etc/cron.daily/ufw-blocklist-ipsum-update
+
+# Source the configuration file
+if [ -f /etc/default/ufw-blocklist ]; then
+    . /etc/default/ufw-blocklist
+else
+    echo "Error: Configuration file /etc/default/ufw-blocklist not found."
+    exit 1
+fi
+
+# Override default ipset name if necessary for this specific script
+UFBL_CURRENT_IPSET_NAME="${UFBL_DEFAULT_IPSET_NAME}"
+UFBL_CURRENT_LOGGER="${UFBL_LOGGER_CMD} -t ${UFBL_CURRENT_IPSET_NAME}"
+
+# Check if the target ipset exists. Exit if not - ie no set to update
+if ! "${UFBL_IPSET_BIN}" -t list "${UFBL_CURRENT_IPSET_NAME}" >/dev/null 2>&1; then
+	${UFBL_CURRENT_LOGGER} -s "ipset named ${UFBL_CURRENT_IPSET_NAME} does not exist. Is UFW started and the ipset created by after.init.d? Exiting."
+	exit 1
+fi
+
+# Get the current number of entries in the ipset
+UFBL_CURRENT_IPSET_COUNT=$("${UFBL_IPSET_BIN}" list "${UFBL_CURRENT_IPSET_NAME}" | grep '^Number of entries:' | cut -d' ' -f4)
+
+${UFBL_CURRENT_LOGGER} "Starting update of ${UFBL_CURRENT_IPSET_NAME} with ${UFBL_CURRENT_IPSET_COUNT} entries from ${UFBL_IPSUM_URL}"
+
+# Download the latest list
+UFBL_RAW_LIST=$(curl -sS -f --compressed "$UFBL_IPSUM_URL" 2>/dev/null)
+UFBL_CURL_RET=$?
+if [ $UFBL_CURL_RET -ne 0 ]; then
+	${UFBL_CURRENT_LOGGER} -s "curl error code $UFBL_CURL_RET for $UFBL_IPSUM_URL"
+	exit 1
+fi
+
+# Read the list into an array, filtering for only valid CIDR notation
+declare -a UFBL_SCRUB_LIST
+# Use the refined regex from the config file
+readarray -t UFBL_SCRUB_LIST < <(echo "$UFBL_RAW_LIST" | egrep -o "${UFBL_CIDR_REGEX}")
+
+# Validate the list length
+UFBL_SCRUB_LIST_LEN="${#UFBL_SCRUB_LIST[@]}"
+#echo "length of scrublist array: $UFBL_SCRUB_LIST_LEN" # Debug line
+if [ $UFBL_SCRUB_LIST_LEN -lt $UFBL_IPSUM_MIN_ENTRIES ]; then
+	${UFBL_CURRENT_LOGGER} -s "$UFBL_SCRUB_LIST_LEN less than $UFBL_IPSUM_MIN_ENTRIES IPs. Something must be wrong with $UFBL_IPSUM_URL. Exiting."
+	exit 1
+fi
+
+# If the list length does not change, generate a warning log.
+if [ $UFBL_SCRUB_LIST_LEN -eq $UFBL_CURRENT_IPSET_COUNT ]; then
+    if [ "$UFBL_IPSUM_WARN_ON_NO_CHANGE" = "yes" ]; then
+    	${UFBL_CURRENT_LOGGER} "Warning: list count for ${UFBL_CURRENT_IPSET_NAME} is the same as the new list count: ${UFBL_CURRENT_IPSET_COUNT}/${UFBL_SCRUB_LIST_LEN}. Source may be stale."
+    fi
+fi
+
+# Create a temporary ipset
+UFBL_TMP_SET_NAME="$(mktemp -u | cut -f2 -d'.')-tmp"
+# Calculate the maximum number of entries for the ipset using headroom
+UFBL_MAX_ELEM_COUNT=$(expr $UFBL_SCRUB_LIST_LEN + $UFBL_DEFAULT_MAXELEM_HEADROOM)
+
+if ! "${UFBL_IPSET_BIN}" -q create "$UFBL_TMP_SET_NAME" hash:net maxelem "$UFBL_MAX_ELEM_COUNT"; then
+    UFBL_CREATE_RET=$?
+    ${UFBL_CURRENT_LOGGER} -s "Error code $UFBL_CREATE_RET creating temporary ipset $UFBL_TMP_SET_NAME. Exiting."
+    "${UFBL_IPSET_BIN}" -q destroy "$UFBL_TMP_SET_NAME" 2>/dev/null || true # Clean up if creation failed partially
+    exit 1
+fi
+
+# Loop through each IP address/CIDR in the scrublist array and add it to the temporary ipset
+UFBL_ADD_COUNT=0
+for UFBL_ENTRY in "${UFBL_SCRUB_LIST[@]}"; do
+    # Add the entry to the temporary ipset
+    #echo "Adding $UFBL_ENTRY to temporary ipset..." # Debug line
+    "${UFBL_IPSET_BIN}" add "$UFBL_TMP_SET_NAME" "$UFBL_ENTRY" 2>/dev/null || {
+        # Log errors if adding fails (e.g., invalid format despite regex, though less likely now)
+        ${UFBL_CURRENT_LOGGER} "Warning: Failed to add '$UFBL_ENTRY' to temporary ipset '$UFBL_TMP_SET_NAME'."
+    }
+	UFBL_ADD_COUNT=$((UFBL_ADD_COUNT+1))
+done
+
+# Swap the temporary ipset with the target ipset
+if ! "${UFBL_IPSET_BIN}" swap "$UFBL_TMP_SET_NAME" "$UFBL_CURRENT_IPSET_NAME"; then
+    UFBL_SWAP_RET=$?
+    ${UFBL_CURRENT_LOGGER} -s "Error code $UFBL_SWAP_RET ipset swapping $UFBL_TMP_SET_NAME to $UFBL_CURRENT_IPSET_NAME. Exiting."
+    "${UFBL_IPSET_BIN}" -q destroy "$UFBL_TMP_SET_NAME" 2>/dev/null || true # Attempt cleanup
+    exit 1
+fi
+
+# Destroy the temporary ipset
+if ! "${UFBL_IPSET_BIN}" -q destroy "$UFBL_TMP_SET_NAME"; then
+    UFBL_DESTROY_RET=$?
+    ${UFBL_CURRENT_LOGGER} -s "Error code $UFBL_DESTROY_RET destroying ipset $UFBL_TMP_SET_NAME. Manual cleanup may be required."
+    # Continue execution as the swap was successful, but log the cleanup failure
+fi
+
+${UFBL_CURRENT_LOGGER} "Finished updating ${UFBL_CURRENT_IPSET_NAME}. Old entry count: ${UFBL_CURRENT_IPSET_COUNT} New count: ${UFBL_ADD_COUNT} of ${UFBL_SCRUB_LIST_LEN} processed entries."
+
+exit 0

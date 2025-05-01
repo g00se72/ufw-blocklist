@@ -1,0 +1,184 @@
+#!/bin/bash
+#
+# This script is executed by /etc/ufw/after.init as part of the ufw startup process.
+# It creates the ipset and adds initial rules for the ipsum blocklist.
+# Daily updates are handled by /etc/cron.daily/ufw-blocklist-ipsum-update.
+#
+# Install this file executable as /etc/ufw/after.init.d/10-ufw-blocklist-ipsum.ufw
+# The '10-' prefix ensures it runs early in the sequence.
+
+# Source the configuration file
+if [ -f /etc/default/ufw-blocklist ]; then
+    . /etc/default/ufw-blocklist
+else
+    echo "Error: Configuration file /etc/default/ufw-blocklist not found."
+    exit 1
+fi
+
+# Specific settings for this blocklist (can override default from config)
+UFBL_IPSET_NAME="ufw-blocklist-ipsum"
+UFBL_SEED_FILE="/etc/ipsum.4.txt" # Initial seed list for this specific blocklist
+UFBL_LOGGER="${UFBL_LOGGER_CMD} -t ${UFBL_IPSET_NAME}"
+
+# Check ipset exists and is executable
+[ -x "$UFBL_IPSET_BIN" ] || {
+    ${UFBL_LOGGER} -s "$UFBL_IPSET_BIN is not executable. Cannot manage ipsets."
+    exit 1
+    }
+
+# Execute the appropriate action based on the argument passed by after.init
+case "$1" in
+start)
+    ${UFBL_LOGGER} "Starting ${UFBL_IPSET_NAME} blocklist initialization."
+
+    # check that blocklist seed file exists
+    if [ ! -f "$UFBL_SEED_FILE" ]; then
+    	${UFBL_LOGGER} -s "Seed file $UFBL_SEED_FILE does not exist. Cannot initialize ipset."
+	    # Do NOT exit 1 here, allow other after.init.d scripts to run.
+        # The daily update script will also log an error if the set doesn't exist.
+        exit 0
+    fi
+
+    # count the number of entries in the seed list
+    # Use the refined regex from the config file to count only valid entries
+    UFBL_SEED_LIST_COUNT=$(egrep -c "${UFBL_CIDR_REGEX}" "$UFBL_SEED_FILE")
+    UFBL_MAX_ELEM_COUNT=$(expr $UFBL_SEED_LIST_COUNT + $UFBL_DEFAULT_MAXELEM_HEADROOM)
+
+    # Create or refresh the ipset
+    # Use -exist to avoid errors if the set already exists (e.g., after ufw restart)
+    if ! "${UFBL_IPSET_BIN}" create "$UFBL_IPSET_NAME" hash:net -exist maxelem "$UFBL_MAX_ELEM_COUNT"; then
+        ${UFBL_LOGGER} -s "Failed to create or refresh ipset '$UFBL_IPSET_NAME'. Exiting."
+        exit 1
+    fi
+    # Flush existing entries if the set was just created or existed
+    if ! "${UFBL_IPSET_BIN}" flush "$UFBL_IPSET_NAME"; then
+         ${UFBL_LOGGER} -s "Failed to flush ipset '$UFBL_IPSET_NAME'. Exiting."
+         exit 1
+    fi
+
+    # Insert firewall rules to take precedence, removing them and adding them back if they already existed
+    # Rules are specific to this ipset name
+
+    # Block inbound from blocklist
+    if ufbl_chain_exists ufw-blocklist-input; then
+        iptables -D INPUT -m set --match-set "$UFBL_IPSET_NAME" src -j ufw-blocklist-input || true
+        iptables -F ufw-blocklist-input
+        iptables -X ufw-blocklist-input
+    fi
+    iptables -N ufw-blocklist-input
+    iptables -A ufw-blocklist-input -j DROP -m comment --comment "ufw-blocklist-input ${UFBL_IPSET_NAME}"
+    iptables -I INPUT -m set --match-set "$UFBL_IPSET_NAME" src -j ufw-blocklist-input
+
+    # Log and drop outbound to blocklist. Hits here may indicate compromised localhost
+    if ufbl_chain_exists ufw-blocklist-output; then
+        iptables -D OUTPUT -m set --match-set "$UFBL_IPSET_NAME" dst -j ufw-blocklist-output || true
+        iptables -F ufw-blocklist-output
+        iptables -X ufw-blocklist-output
+    fi
+    iptables -N ufw-blocklist-output
+    iptables -A ufw-blocklist-output -j LOG --log-level 3 --log-prefix "[UFW BLOCKLIST OUTPUT ${UFBL_IPSET_NAME}] " -m limit --limit 3/minute --limit-burst 10
+    iptables -A ufw-blocklist-output -j DROP -m comment --comment "ufw-blocklist-output ${UFBL_IPSET_NAME}"
+    iptables -I OUTPUT -m set --match-set "$UFBL_IPSET_NAME" dst -j ufw-blocklist-output
+
+    # Log and drop forwarding to blocklist. Hits here may indicate compromised internal hosts
+    if ufbl_chain_exists ufw-blocklist-forward; then
+        iptables -D FORWARD -m set --match-set "$UFBL_IPSET_NAME" dst -j ufw-blocklist-forward || true
+        iptables -F ufw-blocklist-forward
+        iptables -X ufw-blocklist-forward
+    fi
+    iptables -N ufw-blocklist-forward
+    iptables -A ufw-blocklist-forward -j LOG --log-level 3 --log-prefix "[UFW BLOCKLIST FORWARD ${UFBL_IPSET_NAME}] " -m limit --limit 3/minute --limit-burst 10
+    iptables -A ufw-blocklist-forward -j DROP -m comment --comment "ufw-blocklist-forward ${UFBL_IPSET_NAME}"
+    iptables -I FORWARD -m set --match-set "$UFBL_IPSET_NAME" dst -j ufw-blocklist-forward
+
+    # add entries from the seed file to the ipset
+    # start this in a subshell and then disown the job so we return quickly.
+    # Use the refined regex from the config file
+    (
+        egrep -o "${UFBL_CIDR_REGEX}" "$UFBL_SEED_FILE" |\
+	    while read UFBL_ENTRY
+        	do
+    			# Add that IP/CIDR to the ipset blocklist
+    			#echo "Adding $UFBL_ENTRY to ipset blocklist..." # Debug line
+    			"${UFBL_IPSET_BIN}" add "$UFBL_IPSET_NAME" "$UFBL_ENTRY" 2>/dev/null || {
+                    # Log errors if adding fails
+                    ${UFBL_LOGGER} "Warning: Failed to add '$UFBL_ENTRY' from seed file to ipset '$UFBL_IPSET_NAME'."
+                }
+        	done
+    ) < /dev/null &> /dev/null & disown -h
+
+    ${UFBL_LOGGER} "Finished ${UFBL_IPSET_NAME} blocklist initialization."
+    ;;
+
+stop)
+    ${UFBL_LOGGER} "Stopping ${UFBL_IPSET_NAME} blocklist."
+    # delete resources created above
+    # Rules are specific to this ipset name
+    if ufbl_chain_exists ufw-blocklist-input; then
+        iptables -D INPUT -m set --match-set "$UFBL_IPSET_NAME" src -j ufw-blocklist-input || true
+        iptables -F ufw-blocklist-input
+        iptables -X ufw-blocklist-input
+    fi
+    if ufbl_chain_exists ufw-blocklist-output; then
+        iptables -D OUTPUT -m set --match-set "$UFBL_IPSET_NAME" dst -j ufw-blocklist-output || true
+        iptables -F ufw-blocklist-output
+        iptables -X ufw-blocklist-output
+    fi
+    if ufbl_chain_exists ufw-blocklist-forward; then
+        iptables -D FORWARD -m set --match-set "$UFBL_IPSET_NAME" dst -j ufw-blocklist-forward || true
+        iptables -F ufw-blocklist-forward
+        iptables -X ufw-blocklist-forward
+    fi
+    if ufbl_set_exists "$UFBL_IPSET_NAME"; then
+	    "${UFBL_IPSET_BIN}" flush   "$UFBL_IPSET_NAME" || ${UFBL_LOGGER} "Warning: Failed to flush ipset '$UFBL_IPSET_NAME' during stop."
+	    "${UFBL_IPSET_BIN}" destroy "$UFBL_IPSET_NAME" || ${UFBL_LOGGER} "Warning: Failed to destroy ipset '$UFBL_IPSET_NAME' during stop."
+    fi
+    ${UFBL_LOGGER} "Finished stopping ${UFBL_IPSET_NAME} blocklist."
+    ;;
+status)
+    ${UFBL_LOGGER} "Getting status for ${UFBL_IPSET_NAME} blocklist."
+    # display details of the ipset if it exists
+    if ufbl_set_exists "$UFBL_IPSET_NAME"; then
+        "${UFBL_IPSET_BIN}" list "$UFBL_IPSET_NAME" -t
+    else
+        echo "ipset '${UFBL_IPSET_NAME}' does not exist."
+    fi
+    # show iptables hit/byte counts for rules related to this ipset
+    iptables -L -nvx | grep "$UFBL_IPSET_NAME" | grep 'match-set'
+    # show the last 10 lines from the logs related to this ipset
+    journalctl -t "${UFBL_IPSET_NAME}" | tail -n 10
+    ;;
+flush-all)
+    ${UFBL_LOGGER} "Flushing ${UFBL_IPSET_NAME} blocklist entries and resetting iptables counters."
+    # flush set entries if it exists
+    if ufbl_set_exists "$UFBL_IPSET_NAME"; then
+        "${UFBL_IPSET_BIN}" flush  "$UFBL_IPSET_NAME" || ${UFBL_LOGGER} "Warning: Failed to flush ipset '$UFBL_IPSET_NAME' during flush-all."
+    else
+        echo "ipset '${UFBL_IPSET_NAME}' does not exist. Nothing to flush."
+    fi
+
+    # reset iptables accounting for rules related to this ipset
+    # Note: This assumes the comments added during 'start' are unique and stable.
+    # A more robust method might iterate through rules by number.
+    # Reset INPUT chain counters
+    iptables -Z INPUT -m set --match-set "$UFBL_IPSET_NAME" src 2>/dev/null || true
+    iptables -Z ufw-blocklist-input 2>/dev/null || true
+
+    # Reset OUTPUT chain counters
+    iptables -Z OUTPUT -m set --match-set "$UFBL_IPSET_NAME" dst 2>/dev/null || true
+    iptables -Z ufw-blocklist-output 2>/dev/null || true
+
+    # Reset FORWARD chain counters
+    iptables -Z FORWARD -m set --match-set "$UFBL_IPSET_NAME" dst 2>/dev/null || true
+    iptables -Z ufw-blocklist-forward 2>/dev/null || true
+
+    ${UFBL_LOGGER} "Finished flushing ${UFBL_IPSET_NAME} blocklist."
+    ;;
+*)
+    # This case should ideally not be reached if called by the main after.init script
+    ${UFBL_LOGGER} -s "Unsupported action '$1' passed to ${0}. Usage: {start|stop|flush-all|status}"
+    exit 1
+    ;;
+esac
+
+exit 0

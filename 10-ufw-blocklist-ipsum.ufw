@@ -128,7 +128,7 @@ start)
                     fi
                 done
              ${UFBL_LOGGER} "Finished adding entries from $UFBL_SEED_FILE to $UFBL_IPSET_NAME."
-        ) < /dev/null &> /dev/null & disown -h
+        ) </dev/null >/dev/null 2>&1 &
     else
          ${UFBL_LOGGER} "Seed file $UFBL_SEED_FILE was not found, had insecure permissions, or was empty. No entries added to ipset from seed."
     fi

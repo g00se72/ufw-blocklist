@@ -1,15 +1,12 @@
 #!/bin/bash
-#
 # Configuration file for ufw-blocklist scripts
-# Source this file at the beginning of your scripts.
-#
 # This file should be placed at /etc/default/ufw-blocklist
 
 # --- General Settings ---
 # Finding logger command path
 UFBL_LOGGER_BIN="$(command -v logger)"
 if [ -z "$UFBL_LOGGER_BIN" ]; then
-    # Use echo to stderr as logger is not available
+    # Use echo to stderr as logger if not available
     echo "Error: logger command not found. Logging will be disabled for ufw-blocklist scripts." >&2
     # Set UFBL_LOGGER_CMD to a dummy command ":" (no-op)
     UFBL_LOGGER_CMD=":"
@@ -49,7 +46,7 @@ UFBL_WHITELIST_MAXELEM_HEADROOM=128
 # - UFBL_MIN_ENTRIES<Index>: Minimum expected entries from URL (for cron scripts)
 # - UFBL_WARN_ON_NO_CHANGE<Index>: Warn on no change (yes/no) (for cron scripts)
 
-# Default headroom for maxelem if not specified for a specific blocklist
+# Default headroom for maxelem if not specified for a specific blocklists
 UFBL_DEFAULT_MAXELEM_HEADROOM=128
 
 # --- Blocklist 1: Ipsum ---
@@ -63,7 +60,7 @@ UFBL_WARN_ON_NO_CHANGE1="yes"
 # --- Blocklist 2: Example Another List ---
 # UFBL_IPSET_NAME2="ufw-blocklist-another"
 # UFBL_SEED_FILE2="/etc/anotherlist.txt"
-# UFBL_MAXELEM_HEADROOM2=256 # Example of overriding headroom
+# UFBL_MAXELEM_HEADROOM2=256 # Overriding headroom example
 # UFBL_URL2='http://example.com/anotherlist.txt'
 # UFBL_MIN_ENTRIES2=500
 # UFBL_WARN_ON_NO_CHANGE2="no"

@@ -42,7 +42,6 @@ if [ -z "$UFBL_CURRENT_IPSET_NAME" ] || [ -z "$UFBL_IPSUM_URL" ] || [ -z "$UFBL_
     exit 1
 fi
 
-
 # Check if the target blocklist ipset exists. Exit if not
 if ! ufbl_set_exists "$UFBL_CURRENT_IPSET_NAME"; then
 	${UFBL_CURRENT_LOGGER} -s "Blocklist ipset named ${UFBL_CURRENT_IPSET_NAME} does not exist. Is UFW started and the ipset created by after.init.d? Exiting."
@@ -58,7 +57,6 @@ else
     ${UFBL_CURRENT_LOGGER} "Warning: Whitelist ipset named ${UFBL_WHITELIST_IPSET_NAME} does not exist. Whitelist filtering will be skipped during update."
 fi
 
-
 # Get the current number of entries in the blocklist ipset
 UFBL_CURRENT_IPSET_COUNT=$("${UFBL_IPSET_BIN}" list "${UFBL_CURRENT_IPSET_NAME}" 2>/dev/null | grep '^Number of entries:' | cut -d' ' -f4)
 # Handle case where ipset list fails (e.g. set was destroyed unexpectedly)
@@ -66,7 +64,6 @@ if [ -z "$UFBL_CURRENT_IPSET_COUNT" ]; then
     UFBL_CURRENT_IPSET_COUNT=0
     ${UFBL_CURRENT_LOGGER} "Warning: Could not get current entry count for ipset ${UFBL_CURRENT_IPSET_NAME}. Assuming 0."
 fi
-
 
 ${UFBL_CURRENT_LOGGER} "Starting update of ${UFBL_CURRENT_IPSET_NAME}. Current entries: ${UFBL_CURRENT_IPSET_COUNT} from ${UFBL_IPSUM_URL}"
 
@@ -117,25 +114,10 @@ if [ "$UFBL_ADD_COUNT" -lt "$UFBL_IPSUM_MIN_ENTRIES" ]; then
 	exit 1
 fi
 
-# If the list length does not change significantly, generate a warning log
-# Use a tolerance (e.g., 10%) for comparison
-UFBL_COUNT_DIFF=$(expr $UFBL_ADD_COUNT - $UFBL_CURRENT_IPSET_COUNT)
-UFBL_COUNT_DIFF=${UFBL_COUNT_DIFF#-} # Absolute value
-UFBL_MIN_COUNT=$((UFBL_IPSUM_MIN_ENTRIES > UFBL_CURRENT_IPSET_COUNT ? UFBL_CURRENT_IPSET_ENTRIES : UFBL_IPSUM_MIN_ENTRIES)) # Use smaller of the two for percentage base
-# Avoid division by zero if both counts are 0
-if [ "$UFBL_MIN_COUNT" -eq 0 ]; then
-    if [ "$UFBL_ADD_COUNT" -gt 0 ] && [ "$UFBL_CURRENT_IPSET_COUNT" -eq 0 ]; then
-        UFBL_PERCENT_CHANGE=100 # Treat as 100% change if old was 0 and new > 0
-    else
-        UFBL_PERCENT_CHANGE=0 # Treat as 0% change if both are 0
-    fi
-else
-    UFBL_PERCENT_CHANGE=$((UFBL_COUNT_DIFF * 100 / UFBL_MIN_COUNT))
-fi
-
-if [ "$UFBL_PERCENT_CHANGE" -lt 10 ] && [ "$UFBL_ADD_COUNT" -gt 0 ] && [ "$UFBL_CURRENT_IPSET_COUNT" -gt 0 ]; then # Warn if change is less than 10% and lists are non-empty
+# If the list didn't change generate a warning log
+if [ "$UFBL_ADD_COUNT" -eq "$UFBL_CURRENT_IPSET_COUNT" ] && [ "$UFBL_ADD_COUNT" -gt 0 ] && [ "$UFBL_CURRENT_IPSET_COUNT" -gt 0 ]; then
     if [ "$UFBL_IPSUM_WARN_ON_NO_CHANGE" = "yes" ]; then
-    	${UFBL_CURRENT_LOGGER} "Warning: Filtered list count for ${UFBL_CURRENT_IPSET_NAME} is similar to the current count: ${UFBL_ADD_COUNT}/${UFBL_CURRENT_IPSET_COUNT} (~${UFBL_PERCENT_CHANGE}% change). Source may be stale or filtering changed significantly."
+        ${UFBL_CURRENT_LOGGER} "Warning: Filtered list count for ${UFBL_CURRENT_IPSET_NAME} is identical to the current count: ${UFBL_ADD_COUNT}/${UFBL_CURRENT_IPSET_COUNT}. Source may be stale or filtering unchanged."
     fi
 fi
 

@@ -104,6 +104,13 @@ UFBL_FILTERED_LIST=$(
 # Count lines starting with "add "
 UFBL_ADD_COUNT=$(echo "$UFBL_FILTERED_LIST" | grep -c '^add ')
 
+# Check filtered list not empty 
+if [ -z "$UFBL_FILTERED_LIST" ]; then
+    ${UFBL_CURRENT_LOGGER} -s "Error: Filtered list is empty. No entries to add to ipset."
+    "${UFBL_IPSET_BIN}" -q destroy "$UFBL_TMP_SET_NAME" 2>/dev/null || true
+    exit 1
+fi
+
 # Validate the list length after filtering
 if [ "$UFBL_ADD_COUNT" -lt "$UFBL_IPSUM_MIN_ENTRIES" ]; then
 	${UFBL_CURRENT_LOGGER} -s "Filtered list count ($UFBL_ADD_COUNT) less than minimum expected entries ($UFBL_IPSUM_MIN_ENTRIES) from $UFBL_IPSUM_URL. Something may be wrong with the source or filtering. Exiting."
@@ -126,13 +133,11 @@ else
     UFBL_PERCENT_CHANGE=$((UFBL_COUNT_DIFF * 100 / UFBL_MIN_COUNT))
 fi
 
-
 if [ "$UFBL_PERCENT_CHANGE" -lt 10 ] && [ "$UFBL_ADD_COUNT" -gt 0 ] && [ "$UFBL_CURRENT_IPSET_COUNT" -gt 0 ]; then # Warn if change is less than 10% and lists are non-empty
     if [ "$UFBL_IPSUM_WARN_ON_NO_CHANGE" = "yes" ]; then
     	${UFBL_CURRENT_LOGGER} "Warning: Filtered list count for ${UFBL_CURRENT_IPSET_NAME} is similar to the current count: ${UFBL_ADD_COUNT}/${UFBL_CURRENT_IPSET_COUNT} (~${UFBL_PERCENT_CHANGE}% change). Source may be stale or filtering changed significantly."
     fi
 fi
-
 
 # Create a temporary ipset for the NEW blocklist entries
 UFBL_TMP_SET_NAME="$(mktemp -u | cut -f2 -d'.')-tmp"
@@ -145,6 +150,9 @@ if ! "${UFBL_IPSET_BIN}" -q create "$UFBL_TMP_SET_NAME" hash:net maxelem "$UFBL_
     "${UFBL_IPSET_BIN}" -q destroy "$UFBL_TMP_SET_NAME" 2>/dev/null || true # Clean up if creation failed partially
     exit 1
 fi
+
+# Debug: Save filtered list to tmp
+#echo "$UFBL_FILTERED_LIST" > "/tmp/ufw-blocklist-filtered-list.txt"
 
 # Use ipset restore to add entries in bulk
 ${UFBL_CURRENT_LOGGER} "Adding ${UFBL_ADD_COUNT} entries to temporary ipset '$UFBL_TMP_SET_NAME' using ipset restore."

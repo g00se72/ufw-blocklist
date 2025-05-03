@@ -1,11 +1,11 @@
 #!/bin/bash
-#
+
 # This script will download the latest ipsum IP address list and update the
-# corresponding ipset. It reads configuration from /etc/default/ufw-blocklist.
-# It gets its specific blocklist settings from the central config file using index 1.
-# It filters out any IPs/CIDRs that are present in the whitelist ipset.
-# Use memory instead of file system to reduce writes to sd card.
-#
+# corresponding ipset. It reads configuration from /etc/default/ufw-blocklist
+# It gets its specific blocklist settings from the central config file using index 1
+# It filters out any IPs/CIDRs that are present in the whitelist ipset
+# Use memory instead of file system to reduce writes to sd card
+
 # Install this file into /etc/cron.daily/ufw-blocklist-ipsum-update
 
 # Source the configuration file
@@ -17,7 +17,7 @@ else
 fi
 
 # --- Get Blocklist Specific Settings from Config (using index 1 for ipsum) ---
-# This script is responsible for updating Blocklist 1 as defined in the central config.
+# This script is responsible for updating Blocklist 1 as defined in the central config
 # If you create a script for Blocklist 2, it would use index 2 (UFBL_IPSET_NAME2, etc.)
 UFBL_CURRENT_IPSET_NAME="${UFBL_IPSET_NAME1}"
 UFBL_IPSUM_URL="${UFBL_URL1}"
@@ -36,14 +36,14 @@ if [ -z "$UFBL_CURRENT_IPSET_NAME" ] || [ -z "$UFBL_IPSUM_URL" ] || [ -z "$UFBL_
 fi
 
 
-# Check if the target blocklist ipset exists. Exit if not.
+# Check if the target blocklist ipset exists. Exit if not
 if ! "${UFBL_IPSET_BIN}" -t list "${UFBL_CURRENT_IPSET_NAME}" >/dev/null 2>&1; then
 	${UFBL_CURRENT_LOGGER} -s "Blocklist ipset named ${UFBL_CURRENT_IPSET_NAME} does not exist. Is UFW started and the ipset created by after.init.d? Exiting."
 	exit 1
 fi
 
-# Check if the whitelist ipset exists. If not, log a warning and continue.
-# We can still update the blocklist, but filtering against the whitelist won't happen.
+# Check if the whitelist ipset exists. If not, log a warning and continue
+# We still can update the blocklist, but filtering against the whitelist won't happen
 UFBL_WHITELIST_EXISTS=false
 if ufbl_set_exists "$UFBL_WHITELIST_IPSET_NAME"; then
     UFBL_WHITELIST_EXISTS=true
@@ -72,13 +72,12 @@ readarray -t UFBL_SCRUB_LIST < <(echo "$UFBL_RAW_LIST" | egrep -o "${UFBL_CIDR_R
 
 # Validate the list length
 UFBL_SCRUB_LIST_LEN="${#UFBL_SCRUB_LIST[@]}"
-#echo "length of scrublist array: $UFBL_SCRUB_LIST_LEN" # Debug line
 if [ $UFBL_SCRUB_LIST_LEN -lt $UFBL_IPSUM_MIN_ENTRIES ]; then
 	${UFBL_CURRENT_LOGGER} -s "$UFBL_SCRUB_LIST_LEN less than $UFBL_IPSUM_MIN_ENTRIES IPs. Something must be wrong with $UFBL_IPSUM_URL. Exiting."
 	exit 1
 fi
 
-# If the list length does not change, generate a warning log.
+# If the list length does not change, generate a warning log
 if [ $UFBL_SCRUB_LIST_LEN -eq $UFBL_CURRENT_IPSET_COUNT ]; then
     if [ "$UFBL_IPSUM_WARN_ON_NO_CHANGE" = "yes" ]; then
     	${UFBL_CURRENT_LOGGER} "Warning: list count for ${UFBL_CURRENT_IPSET_NAME} is the same as the new list count: ${UFBL_CURRENT_IPSET_COUNT}/${UFBL_SCRUB_LIST_LEN}. Source may be stale."
@@ -107,13 +106,11 @@ for UFBL_ENTRY in "${UFBL_SCRUB_LIST[@]}"; do
     if [ "$UFBL_WHITELIST_EXISTS" = true ]; then
         if "${UFBL_IPSET_BIN}" test "$UFBL_WHITELIST_IPSET_NAME" "$UFBL_ENTRY" 2>/dev/null; then
             UFBL_IS_WHITELISTED=true
-            #echo "Skipping whitelisted IP/CIDR $UFBL_ENTRY from blocklist update." # Debug line
         fi
     fi
 
     if [ "$UFBL_IS_WHITELISTED" = false ]; then
         # Add the entry to the temporary blocklist ipset
-        #echo "Adding $UFBL_ENTRY to temporary blocklist ipset..." # Debug line
         "${UFBL_IPSET_BIN}" add "$UFBL_TMP_SET_NAME" "$UFBL_ENTRY" 2>/dev/null || {
             # Log errors if adding fails (e.g., invalid format despite regex, though less likely now)
             ${UFBL_CURRENT_LOGGER} "Warning: Failed to add '$UFBL_ENTRY' to temporary blocklist ipset '$UFBL_TMP_SET_NAME'."

@@ -41,8 +41,8 @@ fi
 
 # Check if the target blocklist ipset exists. Exit if not
 if ! ufbl_set_exists "$UFBL_CURRENT_IPSET_NAME"; then
-	${UFBL_CURRENT_LOGGER} -s "Blocklist ipset named ${UFBL_CURRENT_IPSET_NAME} does not exist. Is UFW started and the ipset created by after.init.d? Exiting."
-	exit 1
+    ${UFBL_CURRENT_LOGGER} -s "Blocklist ipset named ${UFBL_CURRENT_IPSET_NAME} does not exist. Is UFW started and the ipset created by after.init.d? Exiting."
+    exit 1
 fi
 
 # Get the current number of entries in the blocklist ipset
@@ -59,8 +59,8 @@ ${UFBL_CURRENT_LOGGER} "Starting update of ${UFBL_CURRENT_IPSET_NAME}. Current e
 UFBL_RAW_LIST=$(curl -sS -f --compressed "$UFBL_IPSUM_URL" 2>/dev/null)
 UFBL_CURL_RET=$?
 if [ $UFBL_CURL_RET -ne 0 ]; then
-	${UFBL_CURRENT_LOGGER} -s "curl error code $UFBL_CURL_RET for $UFBL_IPSUM_URL. Exiting."
-	exit 1
+    ${UFBL_CURRENT_LOGGER} -s "curl error code $UFBL_CURL_RET for $UFBL_IPSUM_URL. Exiting."
+    exit 1
 fi
 
 # Filter the downloaded list
@@ -84,8 +84,8 @@ fi
 
 # Validate the list length after filtering
 if [ "$UFBL_ADD_COUNT" -lt "$UFBL_IPSUM_MIN_ENTRIES" ]; then
-	${UFBL_CURRENT_LOGGER} -s "Filtered list count ($UFBL_ADD_COUNT) less than minimum expected entries ($UFBL_IPSUM_MIN_ENTRIES) from $UFBL_IPSUM_URL. Something may be wrong with the source or filtering. Exiting."
-	exit 1
+    ${UFBL_CURRENT_LOGGER} -s "Filtered list count ($UFBL_ADD_COUNT) less than minimum expected entries ($UFBL_IPSUM_MIN_ENTRIES) from $UFBL_IPSUM_URL. Something may be wrong with the source or filtering. Exiting."
+    exit 1
 fi
 
 # If the list didn't change generate a warning log
@@ -135,7 +135,6 @@ if ! "${UFBL_IPSET_BIN}" -q destroy "$UFBL_TMP_SET_NAME"; then
     ${UFBL_CURRENT_LOGGER} -s "Error code $UFBL_DESTROY_RET destroying temporary blocklist ipset $UFBL_TMP_SET_NAME. Manual cleanup may be required."
     # Continue execution as the swap was successful, but log the cleanup failure
 fi
-
 ${UFBL_CURRENT_LOGGER} "Finished updating ${UFBL_CURRENT_IPSET_NAME}. Old entry count: ${UFBL_CURRENT_IPSET_COUNT} New count: ${UFBL_ADD_COUNT} (after filtering)."
 
 exit 0

@@ -11,7 +11,7 @@
 
 1. **`/etc/ufw/after.init`**: Основной скрипт, который запускается UFW после своей инициализации. Он действует как "раннер", выполняя все скрипты, расположенные в директории `/etc/ufw/after.init.d/`. Это обеспечивает модульность и позволяет легко добавлять или удалять различные списки блокировки.
 
-2. **`/etc/ufw/after.init.d/`**: Директория, содержащая исполняемые скрипты, которые выполняются основным скриптом `after.init`. Каждый скрипт в этой директории может отвечать за инициализацию отдельного списка блокировки или белого листа (`ipset`) и настройку соответствующих правил `iptables`. Скрипты именуются с числовым префиксом (например, `10-`, `20-`) для контроля порядка выполнения.
+2. **`/etc/ufw/after.init.d/`**: Директория, содержащая исполняемые скрипты, которые выполняются основным скриптом `after.init`. Каждый скрипт в этой директории может отвечать за инициализацию отдельного списка блокировки или белого листа (`ipset`) и настройку соответствующих правил `iptables`. Скрипты именуются с числовым префиксом (например, `05-`, `10-`, `20-`) для контроля порядка выполнения. Примечание: скрипт создания `ipset` белого листа должен выполняться раньше остальных, таким образом если нужный IP-адрес случайным образом окажется в списке блокировок он будет проигнорирован, так будет исполнятся позднее (правила применяются сверху-вниз)
 
 3. **`/etc/cron.daily/ufw-blocklist-*-update`**: Скрипты для ежедневного обновления списков блокировки. Они скачивают актуальные списки из внешних источников (например, из проекта [ipsum](https://github.com/stamparm/ipsum/tree/master)), валидируют их и атомарно обновляют соответствующие `ipset` без прерывания работы файрвола.
 
@@ -51,13 +51,13 @@
    sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/main/after.init' -o /etc/ufw/after.init
    ```
    ```bash
-   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/main/10-ufw-blocklist-ipsum.ufw' -o /etc/ufw/after.init.d/10-ufw-blocklist-ipsum.ufw
-   ```
-   ```bash
    sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/main/05-ufw-whitelist.ufw' -o /etc/ufw/after.init.d/05-ufw-whitelist.ufw
    ```
    ```bash
-   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/main/ufw-blocklist-ipsum-update' -o /etc/cron.daily/ufw-blocklist-ipsum-update
+   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/main/10-ufw-blocklist1.ufw' -o /etc/ufw/after.init.d/10-ufw-blocklist1.ufw
+   ```
+   ```bash
+   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/g00se72/ufw-blocklist/main/ufw-blocklist1-update' -o /etc/cron.daily/ufw-blocklist1-update
    ```
    
 3. **Сделайте скрипты исполняемыми:**

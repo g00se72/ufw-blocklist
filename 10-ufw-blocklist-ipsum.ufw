@@ -10,7 +10,6 @@
 # The '10-' prefix ensures it runs after the whitelist script
 
 # Reading the configuration file
-
 if [ -f /etc/default/ufw-blocklist ]; then
     . /etc/default/ufw-blocklist
 else
@@ -37,6 +36,7 @@ UFBL_LOGGER="${UFBL_LOGGER_CMD} -t ${UFBL_IPSET_NAME}"
 
 # Execute the appropriate action based on the argument passed by after.init
 case "$1" in
+
 start)
     # Check if the required variables got from the config
     if [ -z "$UFBL_IPSET_NAME" ] || [ -z "$UFBL_SEED_FILE" ]; then
@@ -49,7 +49,6 @@ start)
     # --- Blocklist Initialization ---
     # Check if blocklist seed file exists and security check
     UFBL_FILE_OK=false
-
     if [ -f "$UFBL_SEED_FILE" ]; then
         # File exists, check its current permissions and ownership
         if [ "$(stat -c %U:%G:%a "$UFBL_SEED_FILE")" != "root:root:600" ]; then
@@ -64,7 +63,6 @@ start)
     	${UFBL_LOGGER} "Warning: Blocklist seed file $UFBL_SEED_FILE does not exist. Cannot initialize blocklist ipset from seed. It will be empty until updated."
         echo "Blocklist seed file missing, blocklist ipset will not be initialized from seed."
     fi
-
 
     # Create or refresh the blocklist ipset
     # Use -exist to avoid errors if the set already exists (e.g., after ufw restart)
@@ -87,6 +85,7 @@ start)
         ${UFBL_LOGGER} -s "Failed to create or refresh blocklist ipset '$UFBL_IPSET_NAME'. Exiting."
         exit 1
     fi
+
     # Flush existing entries if the set was just created or existed
     if ! "${UFBL_IPSET_BIN}" flush "$UFBL_IPSET_NAME"; then
          ${UFBL_LOGGER} -s "Failed to flush blocklist ipset '$UFBL_IPSET_NAME'. Exiting."
@@ -96,43 +95,21 @@ start)
     # Add entries from the seed file to the blocklist ipset
     # This block only runs if the file was OK to use AND had entries
     if [ "$UFBL_FILE_OK" = true ] && [ "$UFBL_SEED_LIST_COUNT" -gt 0 ]; then
-        # Filter out whitelisted IPs/CIDRs before adding to blocklist
-        # Check if the whitelist ipset exists before attempting to filter
-        UFBL_WHITELIST_EXISTS=false
-        if ufbl_set_exists "$UFBL_WHITELIST_IPSET_NAME"; then
-            UFBL_WHITELIST_EXISTS=true
-        else
-             ${UFBL_LOGGER} "Warning: Whitelist ipset named ${UFBL_WHITELIST_IPSET_NAME} does not exist. Whitelist filtering from seed file will be skipped."
-        fi
-
-        ${UFBL_LOGGER} "Adding entries from $UFBL_SEED_FILE to $UFBL_IPSET_NAME, excluding whitelisted IPs (if whitelist ipset exists)."
+        ${UFBL_LOGGER} "Adding entries from $UFBL_SEED_FILE to $UFBL_IPSET_NAME."
         # Run in background
         (
             egrep -o "${UFBL_CIDR_REGEX}" "$UFBL_SEED_FILE" |\
             while read UFBL_ENTRY
                 do
-                    # Check if the entry is in the whitelist ipset ONLY if the whitelist ipset exists
-                    UFBL_IS_WHITELISTED=false
-                    if [ "$UFBL_WHITELIST_EXISTS" = true ]; then
-                         if "${UFBL_IPSET_BIN}" test "$UFBL_WHITELIST_IPSET_NAME" "$UFBL_ENTRY" 2>/dev/null; then
-                            UFBL_IS_WHITELISTED=true
-                        fi
-                    fi
-
-                    if [ "$UFBL_IS_WHITELISTED" = false ]; then
-                        # Add that IP/CIDR to the ipset blocklist
-                        "${UFBL_IPSET_BIN}" add "$UFBL_IPSET_NAME" "$UFBL_ENTRY" 2>/dev/null || {
-                            # Log errors if adding fails
-                            ${UFBL_LOGGER} "Warning: Failed to add '$UFBL_ENTRY' from seed file to ipset '$UFBL_IPSET_NAME'."
-                        }
-                    fi
+                    "${UFBL_IPSET_BIN}" add "$UFBL_IPSET_NAME" "$UFBL_ENTRY" 2>/dev/null || {
+                        ${UFBL_LOGGER} "Warning: Failed to add '$UFBL_ENTRY' from seed file to ipset '$UFBL_IPSET_NAME'."
+                    }
                 done
              ${UFBL_LOGGER} "Finished adding entries from $UFBL_SEED_FILE to $UFBL_IPSET_NAME."
         ) </dev/null >/dev/null 2>&1 &
     else
          ${UFBL_LOGGER} "Seed file $UFBL_SEED_FILE was not found, had insecure permissions, or was empty. No entries added to ipset from seed."
     fi
-
 
     # --- IPTables Rules Setup for Blocklist ---
     # Add blocklist rules *after* whitelist rules (whitelist rules are handled by 05-ufw-whitelist.ufw)
@@ -179,7 +156,6 @@ start)
         echo "Skipping IPTables rules setup for ${UFBL_IPSET_NAME} as ipset was not created."
     fi
 
-
     ${UFBL_LOGGER} "Finished ${UFBL_IPSET_NAME} blocklist initialization process."
     ;;
 
@@ -188,16 +164,19 @@ stop)
     # Delete blocklist resources (whitelist resources are handled by 05-ufw-whitelist.ufw)
     # Only attempt to remove rules and destroy set if the set exists
     if ufbl_set_exists "$UFBL_IPSET_NAME"; then
+
         if ufbl_chain_exists ufw-blocklist-input; then
             iptables -D INPUT -m set --match-set "$UFBL_IPSET_NAME" src -j ufw-blocklist-input || true
             iptables -F ufw-blocklist-input
             iptables -X ufw-blocklist-input
         fi
+
         if ufbl_chain_exists ufw-blocklist-output; then
             iptables -D OUTPUT -m set --match-set "$UFBL_IPSET_NAME" dst -j ufw-blocklist-output || true
             iptables -F ufw-blocklist-output
             iptables -X ufw-blocklist-output
         fi
+
         if ufbl_chain_exists ufw-blocklist-forward; then
             iptables -D FORWARD -m set --match-set "$UFBL_IPSET_NAME" dst -j ufw-blocklist-forward || true
             iptables -F ufw-blocklist-forward
@@ -211,6 +190,7 @@ stop)
         ${UFBL_LOGGER} "Blocklist ipset '${UFBL_IPSET_NAME}' does not exist. Nothing to stop."
     fi
     ;;
+
 status)
     ${UFBL_LOGGER} "Getting status for ${UFBL_IPSET_NAME} blocklist."
     # Display details of the blocklist ipset if it exists
@@ -232,13 +212,13 @@ status)
         echo "IPTables rules for '${UFBL_IPSET_NAME}' ipset not found (ipset does not exist)."
     fi
 
-
     echo "" # Add a blank line for separation
 
     # Show the last 10 lines from the logs related to this ipset
     echo "--- Recent Logs (Blocklist) ---"
     journalctl -t "${UFBL_IPSET_NAME}" | tail -n 10
     ;;
+
 flush-all)
     ${UFBL_LOGGER} "Flushing ${UFBL_IPSET_NAME} blocklist entries and resetting iptables counters."
 
@@ -266,6 +246,7 @@ flush-all)
         echo "Blocklist ipset '${UFBL_IPSET_NAME}' does not exist. Nothing to flush."
     fi
     ;;
+
 *)
     # This case should ideally not be reached if called by the main after.init script
     ${UFBL_LOGGER} -s "Unsupported action '$1' passed to ${0}. Usage: {start|stop|flush-all|status}"

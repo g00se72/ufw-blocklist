@@ -96,3 +96,23 @@ ufbl_set_exists() {
     local set_name="$1"
     "${UFBL_IPSET_BIN}" list "$set_name" -name >/dev/null 2>&1
 }
+
+# --- Unified Logging Function ---
+# This function will be used by all scripts for logging
+# It checks for the logger binary internally
+# It uses the UFBL_LOGGER_BIN variable found earlier
+# Usage: ufbl_log <tag> <message>
+ufbl_log() {
+    local tag="$1"
+    shift
+    local message="$@"
+
+    if [ -n "$UFBL_LOGGER_BIN" ]; then
+        # Use the found logger binary with the specified tag
+        "$UFBL_LOGGER_BIN" -t "$tag" "$message"
+    else
+        # logger binary not found, echo to stderr as a fallback
+        # Include the tag in the echo output for context
+        echo "ufw-blocklist ($tag): $message" >&2
+    fi
+}

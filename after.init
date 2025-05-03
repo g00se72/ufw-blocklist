@@ -1,13 +1,13 @@
 #!/bin/sh
-#
+
 # after.init: if executable, called by ufw-init. See 'man ufw-framework' for
 #             details. Note that output from these scripts is not seen via the
 #             the ufw command, but instead via ufw-init.
-#
+
 # This script acts as a runner for scripts placed in /etc/ufw/after.init.d/
 # This allows multiple blocklist or other custom initialisation scripts to be
 # executed by ufw after it starts.
-#
+
 # Install this script executable as /etc/ufw/after.init
 # Install user scripts to be run after ufw has initialised into /etc/ufw/after.init.d/
 # ** Scripts will run with ufw privilege, ie root **
@@ -15,10 +15,10 @@
 # Order of execution is critical. Lower (00) numbered scripts will execute first
 # Higher numbered scripts have higher precedence
 # Example filenames: 10-ipblocklist-ipsum.ufw, 20-subnetblocklist.ufw
-#
+
 set -e
 
-# Source the configuration file (optional for this script, but good practice)
+# Reading configuration file
 if [ -f /etc/default/ufw-blocklist ]; then
     . /etc/default/ufw-blocklist
 fi

@@ -75,15 +75,26 @@
    sudo chmod +x /etc/ufw/after.init.d/05-ufw-whitelist.ufw
    ```
    
-4. **Создайте начальный файл со списком блокировки (seed file):**
+4. **Создайте начальные файлы со списком блокировок и белым списком:**
    
    Скрипт `10-ufw-blocklist1.ufw` при запуске UFW пытается загрузить начальный список из файла `/etc/ufw/ufw-blocklist1.txt`. Вы можете создать этот файл вручную или скачать список командой:
    ```bash
    sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/stamparm/ipsum/master/levels/4.txt' -o /etc/ufw/ufw-blocklist1.txt
    ```
+   ```bash
+   chmod 600 /etc/ufw/ufw-blocklist1.txt
+   ```
    Примечание: Убедитесь, что URL соответствует вашим потребностям. Этот файл используется только для начального заполнения `ipset` при старте UFW. Ежедневное обновление будет использовать URL, указанный в конфигурационном файле.
 
-5. **Создайте начальный файл с белым списком:**  
+      Скрипт `05-ufw-whitelist.ufw` при запуске UFW пытается загрузить начальный список из файла `/etc/ufw/ufw-whitelist.txt`. Вы можете создать и заполнить этот файл вручную любым способом:
+   ```bash
+   echo -e "XXX.XXX.XXX.XXX\nXXX.XXX.XXX.XXX\nXXX.XXX.XXX.XXX" > /etc/ufw/ufw-whitelist.txt && chmod 600 /etc/ufw/ufw-whitelist.txt
+   ```
+   ```bash
+   chmod 600 /etc/ufw/ufw-blocklist1.txt
+   ```
+
+6. **Создайте начальный файл с белым списком:**  
    ```bash
    touch /etc/ufw/ufw-whitelist.txt
    ```

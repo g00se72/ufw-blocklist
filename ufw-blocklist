@@ -36,7 +36,7 @@ UFBL_WHITELIST_FILE="/etc/ufw/ufw-whitelist.txt"
 UFBL_WHITELIST_MAXELEM_HEADROOM=128
 
 # --- Blocklist Definitions ---
-# Define multiple blocklists using indexed variables.
+# Define multiple blocklists using indexed variables
 # Each blocklist needs:
 # - UFBL_IPSET_NAME<Index>: Name of the ipset
 # - UFBL_SEED_FILE<Index>: Path to the initial seed file (for after.init.d)

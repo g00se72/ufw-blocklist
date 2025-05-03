@@ -94,7 +94,7 @@ start)
                     }
                 done
             ${UFBL_LOGGER} "Finished adding entries from $UFBL_WHITELIST_FILE to $UFBL_WHITELIST_IPSET_NAME."
-        ) < /dev/null &> /dev/null & disown -h
+        ) </dev/null >/dev/null 2>&1 &
     else
          ${UFBL_LOGGER} "Whitelist file $UFBL_WHITELIST_FILE was not found, had insecure permissions, or was empty. No entries added to ipset from file."
     fi

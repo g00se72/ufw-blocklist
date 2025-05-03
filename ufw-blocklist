@@ -35,6 +35,13 @@ UFBL_WHITELIST_FILE="/etc/ufw/ufw-whitelist.txt"
 # Headroom for maxelem for the whitelist ipset
 UFBL_WHITELIST_MAXELEM_HEADROOM=128
 
+# --- WARNING!!! Check Whitelist!!! ---
+# Whitelist-only mode: block traffic not matching the whitelist ipset for specific chains
+# Set "yes" to enable, "no" to disable for each chain
+UFBL_WHITELIST_ONLY_INPUT="no"
+UFBL_WHITELIST_ONLY_OUTPUT="no"
+UFBL_WHITELIST_ONLY_FORWARD="no"
+
 # --- Blocklist Definitions ---
 # Define multiple blocklists using indexed variables
 # Each blocklist needs:

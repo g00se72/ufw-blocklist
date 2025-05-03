@@ -46,8 +46,7 @@ if ! ufbl_set_exists "$UFBL_CURRENT_IPSET_NAME"; then
 	exit 1
 fi
 
-# Check if the whitelist ipset exists. If not, log a warning and continue
-# We can still update the blocklist, but filtering against the whitelist won't happen
+# Check if the whitelist ipset exists. If not we can still update the blocklist, but filtering against the whitelist won't happen
 UFBL_WHITELIST_EXISTS=false
 if ufbl_set_exists "$UFBL_WHITELIST_IPSET_NAME"; then
     UFBL_WHITELIST_EXISTS=true

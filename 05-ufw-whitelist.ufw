@@ -28,9 +28,21 @@ case "$1" in
 start)
     ${UFBL_LOGGER} "Starting ${UFBL_WHITELIST_IPSET_NAME} whitelist initialization."
 
-    # Check that whitelist file exists. Create if not.
-    if [ ! -f "$UFBL_WHITELIST_FILE" ]; then
-        ${UFBL_LOGGER} "Whitelist file $UFBL_WHITELIST_FILE does not exist. Creating an empty one."
+    # Security Check or creation. Expected: file exist, owner root, group root, permissions 600 (rw- --- ---)
+    if [ -f "$UFBL_WHITELIST_FILE" ]; then
+        if [ "$(stat -c %U:%G:%a "$UFBL_WHITELIST_FILE")" != "root:root:600" ]; then
+            ${UFBL_LOGGER} "Warning: $UFBL_WHITELIST_FILE has insecure permissions ($(stat -c %U:%G:%a "$UFBL_WHITELIST_FILE")). Setting to root:root 600."
+            # Attempt to set correct permissions and ownership
+            sudo chmod 600 "$UFBL_WHITELIST_FILE" || ${UFBL_LOGGER} "Error setting permissions for $UFBL_WHITELIST_FILE."
+            sudo chown root:root "$UFBL_WHITELIST_FILE" || ${UFBL_LOGGER} "Error setting ownership for $UFBL_WHITELIST_FILE."
+            # Re-check if setting permissions was successful (optional but robust)
+            if [ "$(stat -c %U:%G:%a "$UFBL_WHITELIST_FILE")" != "root:root:600" ]; then
+                 ${UFBL_LOGGER} "Critical Error: Failed to set secure permissions for $UFBL_WHITELIST_FILE. Exiting initialization."
+                 exit 1 # Exit if permissions cannot be secured
+            fi
+        fi
+    else
+		${UFBL_LOGGER} "Whitelist file $UFBL_WHITELIST_FILE does not exist. Creating an empty one."
         sudo touch "$UFBL_WHITELIST_FILE" || {
             ${UFBL_LOGGER} -s "Failed to create whitelist file $UFBL_WHITELIST_FILE. Exiting."
             exit 1

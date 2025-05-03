@@ -23,9 +23,7 @@ UFBL_CURRENT_IPSET_NAME="${UFBL_IPSET_NAME1}"
 UFBL_IPSUM_URL="${UFBL_URL1}"
 UFBL_IPSUM_MIN_ENTRIES="${UFBL_MIN_ENTRIES1}"
 UFBL_IPSUM_WARN_ON_NO_CHANGE="${UFBL_WARN_ON_NO_CHANGE1}"
-# Use specific headroom if defined, otherwise use default
 UFBL_MAXELEM_HEADROOM=${UFBL_MAXELEM_HEADROOM1:-$UFBL_DEFAULT_MAXELEM_HEADROOM}
-
 
 # Specific logger tag for this update script
 UFBL_CURRENT_LOGGER="${UFBL_LOGGER_CMD} -t ${UFBL_CURRENT_IPSET_NAME}-update" # Add -update tag for clarity in logs

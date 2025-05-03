@@ -6,26 +6,23 @@
 # This file should be placed at /etc/default/ufw-blocklist
 
 # --- General Settings ---
-# ipset executable path - dynamically found
-UFBL_IPSET_BIN="$(command -v ipset)"
-# logger command path - dynamically found
+# Finding logger command path
 UFBL_LOGGER_BIN="$(command -v logger)"
-
-# Check if logger was found
 if [ -z "$UFBL_LOGGER_BIN" ]; then
     # Use echo to stderr as logger is not available
     echo "Error: logger command not found. Logging will be disabled for ufw-blocklist scripts." >&2
-    # Set UFBL_LOGGER_CMD to a dummy command that does nothing
-    UFBL_LOGGER_CMD=":" # ':' is a shell no-op command
+    # Set UFBL_LOGGER_CMD to a dummy command ":" (no-op)
+    UFBL_LOGGER_CMD=":"
 else
     # logger command prefix using the found path
     UFBL_LOGGER_CMD="$UFBL_LOGGER_BIN -t ufw-blocklist"
 fi
 
-# Check if ipset was found
+# Finding ipset executable path
+UFBL_IPSET_BIN="$(command -v ipset)"
 if [ -z "$UFBL_IPSET_BIN" ]; then
     # Use logger if available, otherwise echo to stderr
-    if [ -n "$UFBL_LOGGER_BIN" ]; then # Check if logger was found
+    if [ -n "$UFBL_LOGGER_BIN" ]; then
         "$UFBL_LOGGER_BIN" -s -t ufw-blocklist "Error: ipset command not found. Please install ipset."
     else
         echo "Error: ipset command not found. Please install ipset." >&2

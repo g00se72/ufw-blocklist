@@ -26,6 +26,12 @@ UFBL_LOGGER="${UFBL_LOGGER_CMD} -t ${UFBL_WHITELIST_IPSET_NAME}"
 # Execute the appropriate action based on the argument passed by after.init
 case "$1" in
 start)
+    # Check if the required variables were sourced from the config
+    if [ -z "$UFBL_WHITELIST_IPSET_NAME" ] || [ -z "$UFBL_WHITELIST_FILE" ]; then
+        ${UFBL_LOGGER} -s "Error: Required whitelist variables (UFBL_WHITELIST_IPSET_NAME, UFBL_WHITELIST_FILE) not set in config."
+        exit 1
+    fi
+
     ${UFBL_LOGGER} "Starting ${UFBL_WHITELIST_IPSET_NAME} whitelist initialization."
 
     # Security Check or file creation. Expected: file exist, owner root, group root, permissions 600 (rw- --- ---)

@@ -3,7 +3,6 @@
 # This script will download the latest ipsum IP address list and update the
 # corresponding ipset. It reads configuration from /etc/defaults/ufw-blocklist
 # It gets its specific blocklist settings from the central config file using index 1
-# It filters out any IPs/CIDRs that are present in the whitelist ipset
 # Use memory instead of file system to reduce writes to sd card
 
 # Install this file into /etc/cron.daily/ufw-blocklist-ipsum-update
@@ -46,14 +45,6 @@ if ! ufbl_set_exists "$UFBL_CURRENT_IPSET_NAME"; then
 	exit 1
 fi
 
-# Check if the whitelist ipset exists. If not we can still update the blocklist, but filtering against the whitelist won't happen
-UFBL_WHITELIST_EXISTS=false
-if ufbl_set_exists "$UFBL_WHITELIST_IPSET_NAME"; then
-    UFBL_WHITELIST_EXISTS=true
-else
-    ${UFBL_CURRENT_LOGGER} "Warning: Whitelist ipset named ${UFBL_WHITELIST_IPSET_NAME} does not exist. Whitelist filtering will be skipped during update."
-fi
-
 # Get the current number of entries in the blocklist ipset
 UFBL_CURRENT_IPSET_COUNT=$("${UFBL_IPSET_BIN}" list "${UFBL_CURRENT_IPSET_NAME}" 2>/dev/null | grep '^Number of entries:' | cut -d' ' -f4)
 # Handle case where ipset list fails (e.g. set was destroyed unexpectedly)
@@ -72,25 +63,11 @@ if [ $UFBL_CURL_RET -ne 0 ]; then
 	exit 1
 fi
 
-# Filter the downloaded list:
-# 1. Keep only lines matching the CIDR regex
-# 2. For each valid entry, check if it's in the whitelist ipset (if whitelist exists)
-# 3. If not whitelisted, format the line for ipset restore: "add <ipset_name> <entry>"
-# Use process substitution <(...) for efficiency
+# Filter the downloaded list
 UFBL_FILTERED_LIST=$(
     echo "$UFBL_RAW_LIST" | egrep -o "${UFBL_CIDR_REGEX}" | \
     while read UFBL_ENTRY; do
-        UFBL_IS_WHITELISTED=false
-        if [ "$UFBL_WHITELIST_EXISTS" = true ]; then
-            if "${UFBL_IPSET_BIN}" test "$UFBL_WHITELIST_IPSET_NAME" "$UFBL_ENTRY" 2>/dev/null; then
-                UFBL_IS_WHITELISTED=true
-            fi
-        fi
-
-        if [ "$UFBL_IS_WHITELISTED" = false ]; then
-            # Format for ipset restore command
-            echo "add ${UFBL_CURRENT_IPSET_NAME} ${UFBL_ENTRY}"
-        fi
+        echo "add ${UFBL_CURRENT_IPSET_NAME} ${UFBL_ENTRY}"
     done
 )
 

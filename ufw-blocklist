@@ -35,7 +35,6 @@ UFBL_WHITELIST_FILE="/etc/ufw/ufw-whitelist.txt"
 # Headroom for maxelem for the whitelist ipset
 UFBL_WHITELIST_MAXELEM_HEADROOM=128
 
-
 # --- Blocklist Definitions ---
 # Define multiple blocklists using indexed variables.
 # Each blocklist needs:
@@ -49,7 +48,7 @@ UFBL_WHITELIST_MAXELEM_HEADROOM=128
 # Default headroom for maxelem if not specified for a specific blocklists
 UFBL_DEFAULT_MAXELEM_HEADROOM=128
 
-# --- Blocklist 1: Ipsum ---
+# --- Blocklist 1 Settings ---
 UFBL_IPSET_NAME1="ufw-blocklist-ipsum"
 UFBL_SEED_FILE1="/etc/ufw/ufw-blocklist1.txt"
 # UFBL_MAXELEM_HEADROOM1=... # UFBL_DEFAULT_MAXELEM_HEADROOM will be used if commented out
@@ -57,7 +56,7 @@ UFBL_URL1='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt'
 UFBL_MIN_ENTRIES1=1000
 UFBL_WARN_ON_NO_CHANGE1="yes"
 
-# --- Blocklist 2: Example Another List ---
+# --- Blocklist 2 Settings Example ---
 # UFBL_IPSET_NAME2="ufw-blocklist-another"
 # UFBL_SEED_FILE2="/etc/anotherlist.txt"
 # UFBL_MAXELEM_HEADROOM2=256 # Overriding headroom example

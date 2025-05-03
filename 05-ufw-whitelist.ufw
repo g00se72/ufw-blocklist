@@ -25,6 +25,7 @@ UFBL_LOGGER="${UFBL_LOGGER_CMD} -t ${UFBL_WHITELIST_IPSET_NAME}"
 
 # Execute the appropriate action based on the argument passed by after.init
 case "$1" in
+
 start)
     # Check if the required variables got from the config
     if [ -z "$UFBL_WHITELIST_IPSET_NAME" ] || [ -z "$UFBL_WHITELIST_FILE" ]; then
@@ -165,6 +166,7 @@ start)
                 iptables -A FORWARD -j DROP -m comment --comment "ufw-whitelist-only-block-forward ${UFBL_WHITELIST_IPSET_NAME} (fallback)"
             fi
         fi
+
         ${UFBL_LOGGER} "Finished ${UFBL_WHITELIST_IPSET_NAME} whitelist initialization (rules added)."
     else
         ${UFBL_LOGGER} "Skipping IPTables rules setup for ${UFBL_WHITELIST_IPSET_NAME} as ipset was not created."
@@ -179,6 +181,7 @@ stop)
     # Delete whitelist resources
     # Only attempt to remove rules and destroy set if the set exists
     if ufbl_set_exists "$UFBL_WHITELIST_IPSET_NAME"; then
+
         iptables -D ufw-user-input -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT 2>/dev/null || true
         iptables -D ufw-user-input -j DROP 2>/dev/null || true
         iptables -D INPUT -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT 2>/dev/null || true
@@ -203,6 +206,7 @@ stop)
         ${UFBL_LOGGER} "Whitelist ipset '${UFBL_WHITELIST_IPSET_NAME}' does not exist. Nothing to stop."
     fi
     ;;
+
 status)
     ${UFBL_LOGGER} "Getting status for ${UFBL_WHITELIST_IPSET_NAME} whitelist."
     # Display details of the whitelist ipset if it exists
@@ -240,6 +244,7 @@ status)
     echo "--- Recent Logs (Whitelist) ---"
     journalctl -t "${UFBL_WHITELIST_IPSET_NAME}" | tail -n 10
     ;;
+
 flush-all)
     ${UFBL_LOGGER} "Flushing ${UFBL_WHITELIST_IPSET_NAME} whitelist entries and resetting iptables counters."
 

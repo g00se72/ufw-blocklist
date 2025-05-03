@@ -1,12 +1,12 @@
 #!/bin/bash
-#
+
 # This script is executed by /etc/ufw/after.init as part of the ufw startup process.
 # It creates and manages the whitelist ipset and adds corresponding ACCEPT rules.
 # This script should run early, e.g., with a '05-' prefix.
-#
+
 # Install this file executable as /etc/ufw/after.init.d/05-ufw-whitelist.ufw
 
-# Source the configuration file
+# Reading the configuration file
 if [ -f /etc/default/ufw-blocklist ]; then
     . /etc/default/ufw-blocklist
 else

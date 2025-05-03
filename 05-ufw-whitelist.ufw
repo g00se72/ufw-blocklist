@@ -10,7 +10,7 @@
 if [ -f /etc/default/ufw-blocklist ]; then
     . /etc/default/ufw-blocklist
 else
-    echo "Error: Configuration file /etc/default/ufw-blocklist not found."
+    echo "Error: Configuration file /etc/default/ufw-blocklist not found." >&2
     exit 1
 fi
 
@@ -41,7 +41,7 @@ start)
         # File exists, check its current permissions and ownership
         if [ "$(stat -c %U:%G:%a "$UFBL_WHITELIST_FILE")" != "root:root:600" ]; then
             ${UFBL_LOGGER} "Critical Error: $UFBL_WHITELIST_FILE has insecure permissions ($(stat -c %U:%G:%a "$UFBL_WHITELIST_FILE")). Expected root:root 600. Cannot initialize whitelist ipset from file."
-            echo "Whitelist file has insecure permissions, whitelist ipset will not be initialized from file."
+            echo "Whitelist file has insecure permissions, whitelist ipset will not be initialized from file." >&2
         else
              ${UFBL_LOGGER} "Whitelist file $UFBL_WHITELIST_FILE exists and has correct root:root 600 permissions."
              UFBL_FILE_OK=true

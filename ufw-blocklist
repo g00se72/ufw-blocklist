@@ -6,8 +6,24 @@
 # This file should be placed at /etc/default/ufw-blocklist
 
 # --- General Settings ---
-# ipset executable path
-UFBL_IPSET_BIN="/sbin/ipset"
+# Finding ipset executable path
+UFBL_IPSET_BIN="$(command -v ipset)"
+
+# Check if ipset was found
+if [ -z "$UFBL_IPSET_BIN" ]; then
+    # Use logger if available, otherwise echo to stderr
+    if command -v logger >/dev/null 2>&1; then
+        logger -s -t ufw-blocklist "Error: ipset command not found. Please install ipset."
+    else
+        echo "Error: ipset command not found. Please install ipset." >&2
+    fi
+    # Exit only if this config file is sourced by a critical script
+    # For after.init.d or cron scripts, they should handle this check locally as well.
+    # This check here is primarily for validation when the config is sourced.
+    # Consider adding specific checks in each script that *uses* $UFBL_IPSET_BIN.
+    # exit 1 # Uncomment this line if you want sourcing the config to fail hard if ipset is missing
+fi
+
 # logger command prefix
 UFBL_LOGGER_CMD="/usr/bin/logger -t ufw-blocklist"
 
@@ -48,7 +64,6 @@ UFBL_WARN_ON_NO_CHANGE1="yes"
 # UFBL_URL2='http://example.com/anotherlist.txt'
 # UFBL_MIN_ENTRIES2=500
 # UFBL_WARN_ON_NO_CHANGE2="no"
-
 
 # --- CIDR Validation Regex ---
 # Regex to validate IPv4 CIDR notation (e.g., 192.168.1.0/24 or 10.0.0.1)

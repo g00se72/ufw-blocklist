@@ -90,9 +90,6 @@
    ```bash
    echo -e "XXX.XXX.XXX.XXX\nXXX.XXX.XXX.XXX\nXXX.XXX.XXX.XXX" > /etc/ufw/ufw-whitelist.txt && chmod 600 /etc/ufw/ufw-whitelist.txt
    ```
-   ```bash
-   chmod 600 /etc/ufw/ufw-blocklist1.txt
-   ```
 
 6. **Создайте начальный файл с белым списком:**  
    ```bash

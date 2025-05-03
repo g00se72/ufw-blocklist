@@ -49,7 +49,7 @@ UFBL_WHITELIST_MAXELEM_HEADROOM=128
 UFBL_DEFAULT_MAXELEM_HEADROOM=128
 
 # --- Blocklist 1 Settings ---
-UFBL_IPSET_NAME1="ufw-blocklist-ipsum"
+UFBL_IPSET_NAME1="ufw-blocklist1"
 UFBL_SEED_FILE1="/etc/ufw/ufw-blocklist1.txt"
 # UFBL_MAXELEM_HEADROOM1=... # UFBL_DEFAULT_MAXELEM_HEADROOM will be used if commented out
 UFBL_URL1='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt'

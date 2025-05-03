@@ -6,7 +6,7 @@
 # It relies on the whitelist ipset being created by an earlier script (e.g., 05-ufw-whitelist.ufw)
 # Daily updates are handled by /etc/cron.daily/ufw-blocklist-ipsum-update
 
-# Install this file executable as /etc/ufw/after.init.d/10-ufw-blocklist-ipsum.ufw
+# Install this file executable as /etc/ufw/after.init.d/10-ufw-blocklist1.ufw
 # The '10-' prefix ensures it runs after the whitelist script
 
 # Reading the configuration file

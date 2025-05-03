@@ -47,7 +47,7 @@ start)
 
     # --- Blocklist Initialization ---
     # Security Check or file creation. Expected: file exist, owner root, group root, permissions 600 (rw- --- ---)
-	if [ -f "$UFBL_SEED_FILE" ]; then
+    if [ -f "$UFBL_SEED_FILE" ]; then
         if [ "$(stat -c %U:%G:%a "$UFBL_SEED_FILE")" != "root:root:600" ]; then
             ${UFBL_LOGGER} "Warning: $UFBL_SEED_FILE has insecure permissions ($(stat -c %U:%G:%a "$UFBL_SEED_FILE")). Exiting initialization."
             exit 1

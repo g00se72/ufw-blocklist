@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# This script is executed by /etc/ufw/after.init as part of the ufw startup process.
-# It creates and manages the whitelist ipset and adds corresponding ACCEPT rules.
-# This script should run early, e.g., with a '05-' prefix.
+# This script is executed by /etc/ufw/after.init as part of the ufw startup process
+# It creates and manages the whitelist ipset and adds corresponding ACCEPT rules
+# This script should run early, e.g., with a '05-' prefix
 
 # Install this file executable as /etc/ufw/after.init.d/05-ufw-whitelist.ufw
 
@@ -101,10 +101,10 @@ start)
 
 
     # --- IPTables Rules Setup for Whitelist ---
-    # Add whitelist rules *before* any blocklist rules.
-    # These rules explicitly ACCEPT traffic from whitelisted IPs/CIDRs.
-    # Insert into ufw-user-* chains for high precedence within UFW's structure.
-    # ONLY add rules if the ipset was successfully created.
+    # Add whitelist rules *before* any blocklist rules
+    # These rules explicitly ACCEPT traffic from whitelisted IPs/CIDRs
+    # Insert into ufw-user-* chains for high precedence within UFW's structure
+    # ONLY add rules if the ipset was successfully created
     if ufbl_set_exists "$UFBL_WHITELIST_IPSET_NAME"; then
 
         # Accept inbound from whitelist

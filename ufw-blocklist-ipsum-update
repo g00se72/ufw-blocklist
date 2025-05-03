@@ -154,7 +154,7 @@ echo "$UFBL_FILTERED_LIST" | "${UFBL_IPSET_BIN}" restore || {
     "${UFBL_IPSET_BIN}" -q destroy "$UFBL_TMP_SET_NAME" 2>/dev/null || true # Attempt cleanup
     exit 1
 }
-${UFBL_CURRENT_LOGGER} "Finished adding entries to temporary ipset '$UFBL_TMP_SET_SET_NAME'."
+${UFBL_CURRENT_LOGGER} "Finished adding entries to temporary ipset '$UFBL_TMP_SET_NAME'."
 
 # Swap the temporary blocklist ipset with the target blocklist ipset
 if ! "${UFBL_IPSET_BIN}" swap "$UFBL_TMP_SET_NAME" "$UFBL_CURRENT_IPSET_NAME"; then

@@ -17,11 +17,7 @@ if [ -z "$UFBL_IPSET_BIN" ]; then
     else
         echo "Error: ipset command not found. Please install ipset." >&2
     fi
-    # Exit only if this config file is sourced by a critical script
-    # For after.init.d or cron scripts, they should handle this check locally as well.
-    # This check here is primarily for validation when the config is sourced.
-    # Consider adding specific checks in each script that *uses* $UFBL_IPSET_BIN.
-    # exit 1 # Uncomment this line if you want sourcing the config to fail hard if ipset is missing
+    # exit 1 # Uncomment this line if you want to fail scripts that *uses* $UFBL_IPSET_BIN
 fi
 
 # logger command prefix

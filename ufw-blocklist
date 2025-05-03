@@ -1,6 +1,6 @@
 #!/bin/bash
-# Configuration file for ufw-blocklist scripts
-# This file should be placed at /etc/default/ufw-blocklist
+
+# Configuration file for ufw-blocklist scripts. This file should be placed at /etc/default/ufw-blocklist
 
 # --- General Settings ---
 # Finding logger command path

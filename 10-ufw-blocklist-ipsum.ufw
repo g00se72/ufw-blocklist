@@ -14,7 +14,7 @@
 if [ -f /etc/default/ufw-blocklist ]; then
     . /etc/default/ufw-blocklist
 else
-    echo "Error: Configuration file /etc/default/ufw-blocklist not found."
+    echo "Error: Configuration file /etc/default/ufw-blocklist not found." >&2
     exit 1
 fi
 
@@ -54,7 +54,7 @@ start)
         # File exists, check its current permissions and ownership
         if [ "$(stat -c %U:%G:%a "$UFBL_SEED_FILE")" != "root:root:600" ]; then
             ${UFBL_LOGGER} "Critical Error: $UFBL_SEED_FILE has insecure permissions ($(stat -c %U:%G:%a "$UFBL_SEED_FILE")). Expected root:root 600. Cannot initialize blocklist ipset from seed."
-            echo "Blocklist seed file has insecure permissions, blocklist ipset will not be initialized from seed."
+            echo "Blocklist seed file has insecure permissions, blocklist ipset will not be initialized from seed." >&2
         else
              ${UFBL_LOGGER} "Blocklist seed file $UFBL_SEED_FILE exists and has correct root:root 600 permissions."
              UFBL_FILE_OK=true

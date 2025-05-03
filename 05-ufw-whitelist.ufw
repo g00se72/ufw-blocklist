@@ -33,6 +33,8 @@ start)
         if [ "$(stat -c %U:%G:%a "$UFBL_WHITELIST_FILE")" != "root:root:600" ]; then
             ${UFBL_LOGGER} "Warning: $UFBL_WHITELIST_FILE has insecure permissions ($(stat -c %U:%G:%a "$UFBL_WHITELIST_FILE")). Exiting initialization."
             exit 1
+        else
+            ${UFBL_LOGGER} "Whitelist file $UFBL_WHITELIST_FILE exists and has correct permissions."
         fi
     else
 	${UFBL_LOGGER} "Whitelist file $UFBL_WHITELIST_FILE does not exist. Creating an empty one."
@@ -40,6 +42,9 @@ start)
             ${UFBL_LOGGER} -s "Failed to create whitelist file $UFBL_WHITELIST_FILE. Exiting."
             exit 1
         }
+        sudo chmod 600 "$UFBL_WHITELIST_FILE"
+        sudo chown root:root
+        ${UFBL_LOGGER} "Successfully created $UFBL_WHITELIST_FILE with root:root 600 permissions."
     fi
 
     # Count entries in whitelist file (only valid CIDR)

@@ -5,7 +5,7 @@
 # It gets its specific blocklist settings from the central config file using index 1
 # Use memory instead of file system to reduce writes to sd card
 
-# Install this file into /etc/cron.daily/ufw-blocklist-ipsum-update
+# Install this file into /etc/cron.daily/ufw-blocklist1-update
 
 # Reading the configuration file
 if [ -f /etc/default/ufw-blocklist ]; then

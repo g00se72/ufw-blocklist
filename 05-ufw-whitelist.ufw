@@ -37,7 +37,7 @@ start)
             ${UFBL_LOGGER} "Whitelist file $UFBL_WHITELIST_FILE exists and has correct permissions."
         fi
     else
-	${UFBL_LOGGER} "Whitelist file $UFBL_WHITELIST_FILE does not exist. Creating an empty one."
+    ${UFBL_LOGGER} "Whitelist file $UFBL_WHITELIST_FILE does not exist. Creating an empty one."
         sudo touch "$UFBL_WHITELIST_FILE" || {
             ${UFBL_LOGGER} -s "Failed to create whitelist file $UFBL_WHITELIST_FILE. Exiting."
             exit 1

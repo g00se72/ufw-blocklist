@@ -66,10 +66,10 @@
    sudo chmod +x /etc/ufw/after.init
    ```
    ```bash
-   sudo chmod +x /etc/ufw/after.init.d/10-ufw-blocklist-ipsum.ufw
+   sudo chmod +x /etc/ufw/after.init.d/10-ufw-blocklist1.ufw
    ```
    ```bash
-   sudo chmod +x /etc/cron.daily/ufw-blocklist-ipsum-update
+   sudo chmod +x /etc/cron.daily/ufw-blocklist1-update
    ```
    ```bash
    sudo chmod +x /etc/ufw/after.init.d/05-ufw-whitelist.ufw
@@ -77,7 +77,7 @@
    
 4. **Создайте начальный файл со списком блокировки (seed file):**
    
-   Скрипт `10-ufw-blocklist-ipsum.ufw` при запуске UFW пытается загрузить начальный список из файла `/etc/ufw/ufw-blocklist1.txt`. Вы можете создать этот файл вручную или скачав список командой:
+   Скрипт `10-ufw-blocklist1.ufw` при запуске UFW пытается загрузить начальный список из файла `/etc/ufw/ufw-blocklist1.txt`. Вы можете создать этот файл вручную или скачать список командой:
    ```bash
    sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/stamparm/ipsum/master/levels/4.txt' -o /etc/ufw/ufw-blocklist1.txt
    ```
@@ -99,7 +99,7 @@
    ```bash
    sudo systemctl restart ufw
    ```
-   Это запустит скрипт `/etc/ufw/after.init`, который в свою очередь запустит скрипты из `/etc/ufw/after.init.d/`, включая `10-ufw-blocklist-ipsum.ufw`. Скрипт `10-ufw-blocklist-ipsum.ufw` создаст `ipset` и добавит в него записи из `/etc/ipsum.4.txt`, а также настроит правила `iptables`.
+   Это запустит скрипт `/etc/ufw/after.init`, который в свою очередь запустит скрипты из `/etc/ufw/after.init.d/`, включая `05-ufw-whitelist.ufw` и `10-ufw-blocklist1.ufw`. Скрипт `05-ufw-whitelist.ufw` создаст `ipset` и добавит в него записи из `/etc/ufw/ufw-whitelist.txt`, а также настроит правила `iptables`. Скрипт `10-ufw-blocklist1.ufw` создаст `ipset` и добавит в него записи из `/etc/ufw/ufw-blocklist1.txt`, а также настроит правила `iptables`.
 
 ## Конфигурация
 Основной файл конфигурации находится по адресу `/etc/default/ufw-blocklist`. Вы можете редактировать его для изменения следующих параметров:
@@ -112,6 +112,7 @@
 * `UFBL_MIN_ENTRIES<Index>`: Минимальное ожидаемое количество записей в списке `ipsum`
 * `UFBL_WARN_ON_NO_CHANGE<Index>`: Включает/отключает предупреждение, если количество записей не изменилось (`yes`/`no`)
 * `UFBL_CIDR_REGEX`: Регулярное выражение для валидации записей как CIDR (IPv4)
+* `UFBL_WHITELIST_ONLY_<*>`: Работа только по белому листу, запретить остальной трафик. Используйте эту функцию с осторожностью, проверьте внимательно адреса, которые у вас добавлены в белый список, так как можете потерять доступ к своему серверу.
 
 **Для добавления поддержки нового списка:**
 1. Создайте новый скрипт в `/etc/ufw/after.init.d/` (например, `20-myotherlist.ufw`), который будет создавать и наполнять соответствующий `ipset` и добавлять правила `iptables`. Этот скрипт должен использовать функции и переменные из `/etc/default/ufw-blocklist`.
@@ -121,13 +122,13 @@
 ## Использование
 После установки и настройки система работает автоматически. Однако вы можете использовать команды для получения статуса или сброса счетчиков:
 * **Получение статуса:** Выполните команду, которая запустит скрипты `status` из `/etc/ufw/after.init.d/`. Обычно это делается через команду, связанную с UFW, или путем прямого вызова основного скрипта `after.init` (хотя прямое взаимодействие с `after.init` не всегда рекомендуется, так как он предназначен для вызова UFW).\
-Более надежный способ получить статус конкретного списка (например, `ipsum`) - это посмотреть логи или использовать команды `ipset` и `iptables` напрямую, как это делает скрипт `10-ufw-blocklist-ipsum.ufw` в своем блоке `status`.
+Более надежный способ получить статус конкретного списка (например, `ipsum`) - это посмотреть логи или использовать команды `ipset` и `iptables` напрямую, как это делает скрипт `10-ufw-blocklist1.ufw` в своем блоке `status`.
 
 > [!NOTE]
 > Пример просмотра статуса `ipset` и правил для `ipsum`:\
-> `sudo ipset list ufw-blocklist-ipsum -t`\
-> `sudo iptables -L -nvx | grep ufw-blocklist-ipsum`\
-> `sudo journalctl -t ufw-blocklist-ipsum | tail`
+> `sudo ipset list ufw-blocklist1 -t`\
+> `sudo iptables -L -nvx | grep ufw-blocklist1`\
+> `sudo journalctl -t ufw-blocklist1 | tail`
 > 
 > Примечание: Команда `sudo /etc/ufw/after.init status` может работать, но ее основное назначение - быть вызванной UFW.
 
@@ -135,8 +136,8 @@
 
 > [!NOTE]
 > Пример вызова `flush-all` для `ipsum`:\
-> `sudo /etc/ufw/after.init.d/10-ufw-blocklist-ipsum.ufw flush-all`
+> `sudo /etc/ufw/after.init.d/10-ufw-blocklist1.ufw flush-all`
 
 Будьте осторожны с прямым вызовом скриптов в `after.init.d/` и основного `after.init`. Их основное предназначение - быть частью жизненного цикла UFW.
 
-Ежедневное обновление списка `ipsum` происходит автоматически через cron. Вы можете проверить логи (`journalctl -t ufw-blocklist-ipsum`) на наличие сообщений об успешном обновлении или ошибках.
+Ежедневное обновление списка `ipsum` происходит автоматически через cron. Вы можете проверить логи (`journalctl -t ufw-blocklist1`) на наличие сообщений об успешном обновлении или ошибках.

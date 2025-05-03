@@ -53,71 +53,66 @@ start)
             exit 1
         else
             ${UFBL_LOGGER} "Blocklist seed file $UFBL_SEED_FILE exists and has correct permissions."
+            # count the number of entries in the blocklist seed list
+	    # Use the refined regex from the config file to count only valid entries
+	    UFBL_SEED_LIST_COUNT=$(egrep -c "${UFBL_CIDR_REGEX}" "$UFBL_SEED_FILE")
+	    UFBL_MAX_ELEM_COUNT=$(expr $UFBL_SEED_LIST_COUNT + $UFBL_MAXELEM_HEADROOM)
+	
+	    # Create or refresh the blocklist ipset
+	    # Use -exist to avoid errors if the set already exists (e.g., after ufw restart)
+	    if ! "${UFBL_IPSET_BIN}" create "$UFBL_IPSET_NAME" hash:net -exist maxelem "$UFBL_MAX_ELEM_COUNT"; then
+	        ${UFBL_LOGGER} -s "Failed to create or refresh blocklist ipset '$UFBL_IPSET_NAME'. Exiting."
+	        exit 1
+	    fi
+	    # Flush existing entries if the set was just created or existed
+	    if ! "${UFBL_IPSET_BIN}" flush "$UFBL_IPSET_NAME"; then
+	         ${UFBL_LOGGER} -s "Failed to flush blocklist ipset '$UFBL_IPSET_NAME'. Exiting."
+	         exit 1
+	    fi
+	
+	    # add entries from the seed file to the blocklist ipset
+	    # Filter out whitelisted IPs/CIDRs before adding to blocklist
+	    # Check if the whitelist ipset exists before attempting to filter
+	    UFBL_WHITELIST_EXISTS=false
+	    if ufbl_set_exists "$UFBL_WHITELIST_IPSET_NAME"; then
+	        UFBL_WHITELIST_EXISTS=true
+	    else
+	         ${UFBL_LOGGER} "Warning: Whitelist ipset named ${UFBL_WHITELIST_IPSET_NAME} does not exist. Whitelist filtering from seed file will be skipped."
+	    fi
+	
+	    ${UFBL_LOGGER} "Adding entries from $UFBL_SEED_FILE to $UFBL_IPSET_NAME, excluding whitelisted IPs (if whitelist ipset exists)."
+	    # Run in background
+	    (
+	        egrep -o "${UFBL_CIDR_REGEX}" "$UFBL_SEED_FILE" |\
+	        while read UFBL_ENTRY
+	            do
+	                # Check if the entry is in the whitelist ipset ONLY if the whitelist ipset exists
+	                UFBL_IS_WHITELISTED=false
+	                if [ "$UFBL_WHITELIST_EXISTS" = true ]; then
+	                     if "${UFBL_IPSET_BIN}" test "$UFBL_WHITELIST_IPSET_NAME" "$UFBL_ENTRY" 2>/dev/null; then
+	                        UFBL_IS_WHITELISTED=true
+	                        #echo "Skipping whitelisted IP/CIDR $UFBL_ENTRY from blocklist seed file." # Debug line
+	                    fi
+	                fi
+	
+	                if [ "$UFBL_IS_WHITELISTED" = false ]; then
+	                    # Add that IP/CIDR to the ipset blocklist
+	                    #echo "Adding $UFBL_ENTRY to ipset blocklist..." # Debug line
+	                    "${UFBL_IPSET_BIN}" add "$UFBL_IPSET_NAME" "$UFBL_ENTRY" 2>/dev/null || {
+	                        # Log errors if adding fails
+	                        ${UFBL_LOGGER} "Warning: Failed to add '$UFBL_ENTRY' from seed file to ipset '$UFBL_IPSET_NAME'."
+	                    }
+	                fi
+	            done
+	         ${UFBL_LOGGER} "Finished adding entries from $UFBL_SEED_FILE to $UFBL_IPSET_NAME."
+	    ) < /dev/null &> /dev/null & disown -h # Run in background
         fi
     else
-        ${UFBL_LOGGER} "Blcoklist seed file $UFBL_SEED_FILE does not exist. Creating an empty one."
-        sudo touch "$UFBL_SEED_FILE" || {
-            ${UFBL_LOGGER} -s "Failed to create empty blocklist seed file $UFBL_WHITELIST_FILE. Exiting."
-            exit 1
-        }
-        sudo chmod 600 "$UFBL_SEED_FILE"
-        sudo chown root:root
-        ${UFBL_LOGGER} "Successfully created $UFBL_SEED_FILE with root:root 600 permissions."
+    	${UFBL_LOGGER} -s "Blocklist seed file $UFBL_SEED_FILE does not exist. Cannot initialize blocklist ipset."
+	# Do NOT exit 1 here, allow other after.init.d scripts to run.
+        # The daily update script will also log an error if the set doesn't exist.
+        echo "Blocklist seed file missing, blocklist ipset will not be initialized."
     fi
-
-    # count the number of entries in the blocklist seed list
-    # Use the refined regex from the config file to count only valid entries
-    UFBL_SEED_LIST_COUNT=$(egrep -c "${UFBL_CIDR_REGEX}" "$UFBL_SEED_FILE")
-    UFBL_MAX_ELEM_COUNT=$(expr $UFBL_SEED_LIST_COUNT + $UFBL_MAXELEM_HEADROOM)
-
-    # Create or refresh the blocklist ipset
-    # Use -exist to avoid errors if the set already exists (e.g., after ufw restart)
-    if ! "${UFBL_IPSET_BIN}" create "$UFBL_IPSET_NAME" hash:net -exist maxelem "$UFBL_MAX_ELEM_COUNT"; then
-        ${UFBL_LOGGER} -s "Failed to create or refresh blocklist ipset '$UFBL_IPSET_NAME'. Exiting."
-        exit 1
-    fi
-    # Flush existing entries if the set was just created or existed
-    if ! "${UFBL_IPSET_BIN}" flush "$UFBL_IPSET_NAME"; then
-         ${UFBL_LOGGER} -s "Failed to flush blocklist ipset '$UFBL_IPSET_NAME'. Exiting."
-         exit 1
-    fi
-
-    # add entries from the seed file to the blocklist ipset
-    # Filter out whitelisted IPs/CIDRs before adding to blocklist
-    # Check if the whitelist ipset exists before attempting to filter
-    UFBL_WHITELIST_EXISTS=false
-    if ufbl_set_exists "$UFBL_WHITELIST_IPSET_NAME"; then
-        UFBL_WHITELIST_EXISTS=true
-    else
-         ${UFBL_LOGGER} "Warning: Whitelist ipset named ${UFBL_WHITELIST_IPSET_NAME} does not exist. Whitelist filtering from seed file will be skipped."
-    fi
-
-    ${UFBL_LOGGER} "Adding entries from $UFBL_SEED_FILE to $UFBL_IPSET_NAME, excluding whitelisted IPs (if whitelist ipset exists)."
-    # Run in background
-    (
-        egrep -o "${UFBL_CIDR_REGEX}" "$UFBL_SEED_FILE" |\
-        while read UFBL_ENTRY
-            do
-                # Check if the entry is in the whitelist ipset ONLY if the whitelist ipset exists
-                UFBL_IS_WHITELISTED=false
-                if [ "$UFBL_WHITELIST_EXISTS" = true ]; then
-                     if "${UFBL_IPSET_BIN}" test "$UFBL_WHITELIST_IPSET_NAME" "$UFBL_ENTRY" 2>/dev/null; then
-                        UFBL_IS_WHITELISTED=true
-                        #echo "Skipping whitelisted IP/CIDR $UFBL_ENTRY from blocklist seed file." # Debug line
-                    fi
-                fi
-
-                if [ "$UFBL_IS_WHITELISTED" = false ]; then
-                    # Add that IP/CIDR to the ipset blocklist
-                    #echo "Adding $UFBL_ENTRY to ipset blocklist..." # Debug line
-                    "${UFBL_IPSET_BIN}" add "$UFBL_IPSET_NAME" "$UFBL_ENTRY" 2>/dev/null || {
-                        # Log errors if adding fails
-                        ${UFBL_LOGGER} "Warning: Failed to add '$UFBL_ENTRY' from seed file to ipset '$UFBL_IPSET_NAME'."
-                    }
-                fi
-            done
-         ${UFBL_LOGGER} "Finished adding entries from $UFBL_SEED_FILE to $UFBL_IPSET_NAME."
-    ) < /dev/null &> /dev/null & disown -h # Run in background
 
     # --- IPTables Rules Setup for Blocklist ---
     # Add blocklist rules *after* whitelist rules (whitelist rules are handled by 05-ufw-whitelist.ufw).

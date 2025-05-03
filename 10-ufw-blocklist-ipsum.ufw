@@ -9,7 +9,7 @@
 # Install this file executable as /etc/ufw/after.init.d/10-ufw-blocklist-ipsum.ufw
 # The '10-' prefix ensures it runs after the whitelist script.
 
-# Source the configuration file
+# Reading the configuration file
 if [ -f /etc/default/ufw-blocklist ]; then
     . /etc/default/ufw-blocklist
 else
@@ -37,12 +37,14 @@ UFBL_LOGGER="${UFBL_LOGGER_CMD} -t ${UFBL_IPSET_NAME}"
 # Execute the appropriate action based on the argument passed by after.init
 case "$1" in
 start)
-    # Check if the required variables were sourced from the config
-    if [ -z "$UFBL_IPSET_NAME" ] || [ -z "$UFBL_SEED_FILE" ]; then
-        ${UFBL_LOGGER} -s "Error: Required blocklist variables (UFBL_IPSET_NAME1, UFBL_SEED_FILE1) not set in config."
-        exit 1
+    # Check that blacklist file exists. Create if not.
+    if [ ! -f "$UFBL_SEED_FILE" ]; then
+        ${UFBL_LOGGER} "Blocklist seed file $UFBL_SEED_FILE does not exist. Creating an empty one."
+        sudo touch "$UFBL_SEED_FILE" || {
+            ${UFBL_LOGGER} -s "Failed to create empty blocklist seed file $UFBL_SEED_FILE. Exiting."
+            exit 1
+        }
     fi
-
     ${UFBL_LOGGER} "Starting ${UFBL_IPSET_NAME} blocklist initialization."
 
     # --- Blocklist Initialization ---
@@ -53,6 +55,19 @@ start)
         # The daily update script will also log an error if the set doesn't exist.
         echo "Blocklist seed file missing, blocklist ipset will not be initialized."
     else
+        # --- File Existence and Security Check ---
+        # Expected: file exists, owner root, group root, permissions 600 (rw- --- ---)
+        # If file exists, check its current permissions and ownership. Do NOT attempt to fix.
+        if [ "$(stat -c %U:%G:%a "$UFBL_SEED_FILE")" != "root:root:600" ]; then
+            ${UFBL_LOGGER} "Critical Error: $UFBL_SEED_FILE has insecure permissions ($(stat -c %U:%G:%a "$UFBL_SEED_FILE")). Expected root:root 600. Exiting initialization."
+            exit 1 # Exit if permissions are insecure
+        else
+             ${UFBL_LOGGER} "Blocklist seed file $UFBL_SEED_FILE exists and has correct root:root 600 permissions."
+        fi
+        # Note: If the file does NOT exist, this script will not create it.
+        # The user is expected to create the seed file manually with correct permissions.
+        # --- End File Existence and Security Check ---
+
         # count the number of entries in the blocklist seed list
         # Use the refined regex from the config file to count only valid entries
         UFBL_SEED_LIST_COUNT=$(egrep -c "${UFBL_CIDR_REGEX}" "$UFBL_SEED_FILE")

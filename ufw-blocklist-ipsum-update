@@ -12,7 +12,7 @@
 if [ -f /etc/default/ufw-blocklist ]; then
     . /etc/default/ufw-blocklist
 else
-    echo "Error: Configuration file /etc/default/ufw-blocklist not found." >&2 # Log to stderr
+    echo "Error: Configuration file /etc/default/ufw-blocklist not found." >&2
     exit 1
 fi
 

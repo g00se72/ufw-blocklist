@@ -90,7 +90,7 @@
 
    Скрипт `05-ufw-whitelist.ufw` при запуске UFW пытается загрузить начальный список из файла `/etc/ufw/ufw-whitelist.txt`. Вы можете создать и заполнить этот файл вручную любым способом:
    ```bash
-   echo -e "XXX.XXX.XXX.XXX\nXXX.XXX.XXX.XXX\nXXX.XXX.XXX.XXX" > /etc/ufw/ufw-whitelist.txt && chmod 600 /etc/ufw/ufw-whitelist.txt
+   echo -e "192.168.1.100\n10.0.0.0/8\n203.0.113.50" > /etc/ufw/ufw-whitelist.txt && chmod 600 /etc/ufw/ufw-whitelist.txt
    ```
 
 > [!NOTE]

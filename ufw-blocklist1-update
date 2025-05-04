@@ -67,7 +67,7 @@ fi
 UFBL_FILTERED_LIST=$(
     echo "$UFBL_RAW_LIST" | egrep -o "${UFBL_CIDR_REGEX}" | \
     while read UFBL_ENTRY; do
-        echo "add ${UFBL_CURRENT_IPSET_NAME} ${UFBL_ENTRY}"
+        echo "add ${UFBL_CURRENT_IPSET_NAME} ${UFBL_ENTRY} -exist"
     done
 )
 

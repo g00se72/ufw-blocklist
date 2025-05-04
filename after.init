@@ -26,11 +26,7 @@ fi
 UFBL_AFTER_INIT_DIR='/etc/ufw/after.init.d'
 
 if [ ! -d "$UFBL_AFTER_INIT_DIR" ]; then
-    if command -v "${UFBL_LOGGER_CMD%% *}" >/dev/null 2>&1; then
-        ${UFBL_LOGGER_CMD} -s "$UFBL_AFTER_INIT_DIR does not exist. No after.init.d scripts to run."
-    else
-        echo "ufw after.init: $UFBL_AFTER_INIT_DIR does not exist. No after.init.d scripts to run."
-    fi
+    ufbl_log "ufw-after.init" "$UFBL_AFTER_INIT_DIR does not exist. No after.init.d scripts to run." >&2 # Note: >&2 is still useful here
     exit 0
 fi
 
@@ -64,11 +60,7 @@ flush-all)
     ;;
 
 *)
-    if command -v "${UFBL_LOGGER_CMD%% *}" >/dev/null 2>&1; then
-        ${UFBL_LOGGER_CMD} -s "Unsupported action '$1' passed to /etc/ufw/after.init. Usage: {start|stop|flush-all|status}"
-    else
-        echo "ufw after.init: Unsupported action '$1'. Usage: {start|stop|flush-all|status}"
-	fi
+    ufbl_log "ufw-after.init" "Unsupported action '$1' passed to /etc/ufw/after.init. Usage: {start|stop|flush-all|status}" >&2
     exit 1 # Exit with an error code for unsupported actions
     ;;
 

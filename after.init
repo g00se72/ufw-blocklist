@@ -26,7 +26,7 @@ fi
 UFBL_AFTER_INIT_DIR='/etc/ufw/after.init.d'
 
 if [ ! -d "$UFBL_AFTER_INIT_DIR" ]; then
-    ufbl_log "ufw-after.init" "$UFBL_AFTER_INIT_DIR does not exist. No after.init.d scripts to run." >&2 # Note: >&2 is still useful here
+    ufbl_log "ufw-after.init" "$UFBL_AFTER_INIT_DIR does not exist. No after.init.d scripts to run." >&2
     exit 0
 fi
 

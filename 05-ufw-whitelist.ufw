@@ -10,8 +10,8 @@
 if [ -f /etc/default/ufw-blocklist ]; then
     . /etc/default/ufw-blocklist
 else
-    echo "Error: Configuration file /etc/default/ufw-blocklist not found." >&2
-    exit 1
+    echo "Error: Configuration file /etc/default/ufw-blocklist not found." >&2
+    exit 1
 fi
 
 # Specific logger tag for the whitelist script
@@ -19,21 +19,21 @@ UFBL_TAG="${UFBL_WHITELIST_IPSET_NAME}"
 
 # Check ipset exists and is executable
 [ -x "$UFBL_IPSET_BIN" ] || {
-    ufbl_log "$UFBL_TAG" "$UFBL_IPSET_BIN is not executable or not found. Cannot manage ipsets. Please install ipset." >&2
-    exit 1
-    }
+    ufbl_log "$UFBL_TAG" "$UFBL_IPSET_BIN is not executable or not found. Cannot manage ipsets. Please install ipset." >&2
+    exit 1
+    }
 
 # Execute the appropriate action based on the argument passed by after.init
 case "$1" in
 
 start)
-    # Check if the required variables got from the config
-    if [ -z "$UFBL_WHITELIST_IPSET_NAME" ] || [ -z "$UFBL_WHITELIST_FILE" ]; then
-        ufbl_log "$UFBL_TAG" "Error: Required whitelist variables (UFBL_WHITELIST_IPSET_NAME, UFBL_WHITELIST_FILE) not set in config." >&2
-        exit 1
-    fi
+    # Check if the required variables got from the config
+    if [ -z "$UFBL_WHITELIST_IPSET_NAME" ] || [ -z "$UFBL_WHITELIST_FILE" ]; then
+        ufbl_log "$UFBL_TAG" "Error: Required whitelist variables (UFBL_WHITELIST_IPSET_NAME, UFBL_WHITELIST_FILE) not set in config." >&2
+        exit 1
+    fi
 
-    ufbl_log "$UFBL_TAG" "Starting ${UFBL_WHITELIST_IPSET_NAME} whitelist initialization."
+    ufbl_log "$UFBL_TAG" "Starting ${UFBL_WHITELIST_IPSET_NAME} whitelist initialization."
 
     # Check if whitelist file exists and security check
     UFBL_FILE_OK=false
@@ -170,12 +170,12 @@ start)
         ufbl_log "$UFBL_TAG" "Skipping IPTables rules setup for ${UFBL_WHITELIST_IPSET_NAME} as ipset was not created."
     fi
 
-    ufbl_log "$UFBL_TAG" "Finished ${UFBL_WHITELIST_IPSET_NAME} whitelist initialization process."
-    ;;
+    ufbl_log "$UFBL_TAG" "Finished ${UFBL_WHITELIST_IPSET_NAME} whitelist initialization process."
+    ;;
 
 stop)
-    ufbl_log "$UFBL_TAG" "Stopping ${UFBL_WHITELIST_IPSET_NAME} whitelist."
-    # Delete whitelist resources
+    ufbl_log "$UFBL_TAG" "Stopping ${UFBL_WHITELIST_IPSET_NAME} whitelist."
+    # Delete whitelist resources
     # Only attempt to remove rules and destroy set if the set exists
     if ufbl_set_exists "$UFBL_WHITELIST_IPSET_NAME"; then
 
@@ -205,28 +205,28 @@ stop)
     ;;
 
 status)
-    ufbl_log "$UFBL_TAG" "Getting status for ${UFBL_WHITELIST_IPSET_NAME} whitelist."
-    # Display details of the whitelist ipset if it exists
-    if ufbl_set_exists "$UFBL_WHITELIST_IPSET_NAME"; then
-        echo "--- Whitelist Status (${UFBL_WHITELIST_IPSET_NAME}) ---"
-        "${UFBL_IPSET_BIN}" list "$UFBL_WHITELIST_IPSET_NAME" -t
-        echo "Whitelist file: $UFBL_WHITELIST_FILE"
-        if [ -f "$UFBL_WHITELIST_FILE" ]; then
-            echo "Entries in whitelist file: $(egrep -c "${UFBL_CIDR_REGEX}" "$UFBL_WHITELIST_FILE")"
-        else
-             echo "Whitelist file not found."
-        fi
-    else
-        echo "Whitelist ipset '${UFBL_WHITELIST_IPSET_NAME}' does not exist."
-        echo "Whitelist file: $UFBL_WHITELIST_FILE"
-        if [ ! -f "$UFBL_WHITELIST_FILE" ]; then
-             echo "Whitelist file not found."
-        fi
-    fi
+    ufbl_log "$UFBL_TAG" "Getting status for ${UFBL_WHITELIST_IPSET_NAME} whitelist."
+    # Display details of the whitelist ipset if it exists
+    if ufbl_set_exists "$UFBL_WHITELIST_IPSET_NAME"; then
+        echo "--- Whitelist Status (${UFBL_WHITELIST_IPSET_NAME}) ---"
+        "${UFBL_IPSET_BIN}" list "$UFBL_WHITELIST_IPSET_NAME" -t
+        echo "Whitelist file: $UFBL_WHITELIST_FILE"
+        if [ -f "$UFBL_WHITELIST_FILE" ]; then
+            echo "Entries in whitelist file: $(egrep -c "${UFBL_CIDR_REGEX}" "$UFBL_WHITELIST_FILE")"
+        else
+            echo "Whitelist file not found."
+        fi
+    else
+        echo "Whitelist ipset '${UFBL_WHITELIST_IPSET_NAME}' does not exist."
+        echo "Whitelist file: $UFBL_WHITELIST_FILE"
+        if [ ! -f "$UFBL_WHITELIST_FILE" ]; then
+            echo "Whitelist file not found."
+        fi
+    fi
 
-    echo "" # Add a blank line for separation
+    echo "" # Add a blank line for separation
 
-    # Show iptables rules related to the whitelist
+    # Show iptables rules related to the whitelist
     # Only attempt to list rules if the set exists (to avoid iptables errors)
     if ufbl_set_exists "$UFBL_WHITELIST_IPSET_NAME"; then
         echo "--- IPTables Rules Status (Whitelist) ---"
@@ -235,19 +235,19 @@ status)
         echo "IPTables rules for '${UFBL_WHITELIST_IPSET_NAME}' ipset not found (ipset does not exist)."
     fi
 
-    echo "" # Add a blank line for separation
+    echo "" # Add a blank line for separation
 
-    # Show the last 10 lines from the logs related to the whitelist
-    echo "--- Recent Logs (Whitelist) ---"
-    journalctl -t "${UFBL_WHITELIST_IPSET_NAME}" | tail -n 10
-    ;;
+    # Show the last 10 lines from the logs related to the whitelist
+    echo "--- Recent Logs (Whitelist) ---"
+    journalctl -t "${UFBL_WHITELIST_IPSET_NAME}" | tail -n 10
+    ;;
 
 flush-all)
-    ufbl_log "$UFBL_TAG" "Flushing ${UFBL_WHITELIST_IPSET_NAME} whitelist entries and resetting iptables counters."
+    ufbl_log "$UFBL_TAG" "Flushing ${UFBL_WHITELIST_IPSET_NAME} whitelist entries and resetting iptables counters."
 
-    # Flush whitelist set entries if it exists
+    # Flush whitelist set entries if it exists
     if ufbl_set_exists "$UFBL_WHITELIST_IPSET_NAME"; then
-        "${UFBL_IPSET_BIN}" flush  "$UFBL_WHITELIST_IPSET_NAME" || ufbl_log "$UFBL_TAG" "Warning: Failed to flush whitelist ipset '$UFBL_WHITELIST_IPSET_NAME' during flush-all."
+        "${UFBL_IPSET_BIN}" flush "$UFBL_WHITELIST_IPSET_NAME" || ufbl_log "$UFBL_TAG" "Warning: Failed to flush whitelist ipset '$UFBL_WHITELIST_IPSET_NAME' during flush-all."
 
         # Reset iptables accounting for rules related to the whitelist
         # Note: This assumes the comments added during 'start' are unique and stable.
@@ -270,12 +270,12 @@ flush-all)
     else
         echo "Whitelist ipset '${UFBL_WHITELIST_IPSET_NAME}' does not exist. Nothing to flush."
     fi
-    ;;
+    ;;
 *)
-    # This case should ideally not be reached if called by the main after.init script
-    ufbl_log "$UFBL_TAG" "Unsupported action '$1' passed to ${0}. Usage: {start|stop|flush-all|status}" >&2
-    exit 1
-    ;;
+    # This case should ideally not be reached if called by the main after.init script
+    ufbl_log "$UFBL_TAG" "Unsupported action '$1' passed to ${0}. Usage: {start|stop|flush-all|status}" >&2
+    exit 1
+    ;;
 esac
 
 exit 0

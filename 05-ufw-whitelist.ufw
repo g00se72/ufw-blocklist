@@ -196,7 +196,7 @@ stop)
         iptables -D FORWARD -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT 2>/dev/null || true
         iptables -D FORWARD -j DROP 2>/dev/null || true
 
-        "${UFBL_IPSET_BIN}" flush   "$UFBL_WHITELIST_IPSET_NAME" || ufbl_log "$UFBL_TAG" "Warning: Failed to flush whitelist ipset '$UFBL_WHITELIST_IPSET_NAME' during stop."
+        "${UFBL_IPSET_BIN}" flush "$UFBL_WHITELIST_IPSET_NAME" || ufbl_log "$UFBL_TAG" "Warning: Failed to flush whitelist ipset '$UFBL_WHITELIST_IPSET_NAME' during stop."
         "${UFBL_IPSET_BIN}" destroy "$UFBL_WHITELIST_IPSET_NAME" || ufbl_log "$UFBL_TAG" "Warning: Failed to destroy whitelist ipset '$UFBL_WHITELIST_IPSET_NAME' during stop."
         ufbl_log "$UFBL_TAG" "Finished stopping ${UFBL_WHITELIST_IPSET_NAME} whitelist (resources removed)."
     else

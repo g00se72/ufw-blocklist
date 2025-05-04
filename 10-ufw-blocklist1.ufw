@@ -29,7 +29,7 @@ UFBL_TAG="${UFBL_IPSET_NAME}"
 
 # Check ipset exists and is executable
 [ -x "$UFBL_IPSET_BIN" ] || {
-    ufbl_log "$UFBL_TAG" -s "$UFBL_IPSET_BIN is not executable or not found. Cannot manage ipsets. Please install ipset." >&2
+    ufbl_log "$UFBL_TAG" "$UFBL_IPSET_BIN is not executable or not found. Cannot manage ipsets. Please install ipset." >&2
     exit 1
     }
 
@@ -39,7 +39,7 @@ case "$1" in
 start)
     # Check if the required variables got from the config
     if [ -z "$UFBL_IPSET_NAME" ] || [ -z "$UFBL_SEED_FILE" ]; then
-        ufbl_log "$UFBL_TAG" -s "Error: Required blocklist variables (UFBL_IPSET_NAME1, UFBL_SEED_FILE1) not set in config." >&2
+        ufbl_log "$UFBL_TAG" "Error: Required blocklist variables (UFBL_IPSET_NAME1, UFBL_SEED_FILE1) not set in config." >&2
         exit 1
     fi
 
@@ -79,13 +79,13 @@ start)
 
     # Create or refresh the blocklist ipset
     if ! "${UFBL_IPSET_BIN}" create "$UFBL_IPSET_NAME" hash:net -exist maxelem "$UFBL_MAX_ELEM_COUNT"; then
-        ufbl_log "$UFBL_TAG" -s "Failed to create or refresh blocklist ipset '$UFBL_IPSET_NAME'. Exiting." >&2
+        ufbl_log "$UFBL_TAG" "Failed to create or refresh blocklist ipset '$UFBL_IPSET_NAME'. Exiting." >&2
         exit 1
     fi
 
     # Flush existing entries if the set was just created or existed
     if ! "${UFBL_IPSET_BIN}" flush "$UFBL_IPSET_NAME"; then
-         ufbl_log "$UFBL_TAG" -s "Failed to flush blocklist ipset '$UFBL_IPSET_NAME'. Exiting." >&2
+         ufbl_log "$UFBL_TAG" "Failed to flush blocklist ipset '$UFBL_IPSET_NAME'. Exiting." >&2
          exit 1
     fi
 

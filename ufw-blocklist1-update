@@ -101,7 +101,7 @@ UFBL_TMP_SET_NAME="$(mktemp -u | cut -f2 -d'.')-tmp"
 UFBL_MAX_ELEM_COUNT=$(expr $UFBL_ADD_COUNT + $UFBL_MAXELEM_HEADROOM) # Use count after filtering
 
 if ! "${UFBL_IPSET_BIN}" -q create "$UFBL_TMP_SET_NAME" hash:net maxelem "$UFBL_MAX_ELEM_COUNT"; then
-    ufbl_log "$UFBL_TAG" "Debug: Temporary ipset '$UFBL_TMP_SET_NAME' created with maxelem $UFBL_MAX_ELEM_COUNT."
+    ufbl_log "$UFBL_TAG" "Debug: Temporary ipset '$UFBL_TMP_SET_NAME' created with maxelem '$UFBL_MAX_ELEM_COUNT'."
     UFBL_CREATE_RET=$?
     ufbl_log "$UFBL_TAG" "Error code $UFBL_CREATE_RET creating temporary blocklist ipset $UFBL_TMP_SET_NAME. Exiting." >&2
     "${UFBL_IPSET_BIN}" -q destroy "$UFBL_TMP_SET_NAME" 2>/dev/null || true # Clean up if creation failed partially
@@ -110,11 +110,11 @@ fi
 
 # Debug: Save filtered list to tmp
 echo "$UFBL_FILTERED_LIST" > "/tmp/ufw-blocklist-filtered-list.txt"
-ufbl_log "$UFBL_TAG" "Debug: Temporary ipset '$UFBL_TMP_SET_NAME' created with maxelem $UFBL_MAX_ELEM_COUNT."
+ufbl_log "$UFBL_TAG" "Debug: Temporary ipset '$UFBL_TMP_SET_NAME' created with maxelem '$UFBL_MAX_ELEM_COUNT'."
 
 # Use ipset restore to add entries in bulk
 ufbl_log "$UFBL_TAG" "Adding ${UFBL_ADD_COUNT} entries to temporary ipset '$UFBL_TMP_SET_NAME' using ipset restore."
-ufbl_log "$UFBL_TAG" "Debug: Attempting to restore $UFBL_ADD_COUNT entries to '$UFBL_TMP_SET_NAME'."
+ufbl_log "$UFBL_TAG" "Debug: Attempting to restore '$UFBL_ADD_COUNT' entries to '$UFBL_TMP_SET_NAME'."
 #echo "$UFBL_FILTERED_LIST" | "${UFBL_IPSET_BIN}" restore || {
 #    UFBL_RESTORE_RET=$?
 #    ufbl_log "$UFBL_TAG" "Error code $UFBL_RESTORE_RET during ipset restore to '$UFBL_TMP_SET_NAME'. Exiting." >&2

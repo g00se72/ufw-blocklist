@@ -29,9 +29,9 @@ UFBL_TAG="${UFBL_CURRENT_IPSET_NAME}-update" # Add -update tag for clarity in lo
 
 # Check if ipset exists and is executable
 [ -x "$UFBL_IPSET_BIN" ] || {
-    ufbl_log "$UFBL_TAG" "$UFBL_IPSET_BIN is not executable or not found. Cannot manage ipsets. Please install ipset." >&2
-    exit 1
-    }
+    ufbl_log "$UFBL_TAG" "$UFBL_IPSET_BIN is not executable or not found. Cannot manage ipsets. Please install ipset." >&2
+    exit 1
+    }
 
 # Check if the required variables got from the config
 if [ -z "$UFBL_CURRENT_IPSET_NAME" ] || [ -z "$UFBL_IPSUM_URL" ] || [ -z "$UFBL_IPSUM_MIN_ENTRIES" ]; then

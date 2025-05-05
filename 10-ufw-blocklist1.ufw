@@ -73,7 +73,7 @@ start)
     else
          # File was not OK (missing or bad permissions), create an empty set with default headroom
          UFBL_SEED_LIST_COUNT=0
-         UFBL_MAX_ELEM_COUNT=$UFBL_DEFAULT_MAXELEM_HEADROOM
+         UFBL_MAX_ELEM_COUNT=$UFBL_MAXELEM_HEADROOM
          ufbl_log "$UFBL_TAG" "Using default maxelem for ipset as seed file was not available/secure: ${UFBL_MAX_ELEM_COUNT}"
     fi
 

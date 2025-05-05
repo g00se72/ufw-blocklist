@@ -92,7 +92,7 @@ start)
     # Add entries from the blocklist file to the blocklist ipset
     # This block only runs if the file was OK to use AND had entries
     if [ "$UFBL_FILE_OK" = true ] && [ "$UFBL_BLOCKLIST_COUNT" -gt 0 ]; then
-        ufbl_log "$UFBL_TAG" "Adding entries from $UFBL_BLOCKLIST_FILE to $UFBL_BLOCKLIST_IPSET_NAME."
+        ufbl_log "$UFBL_TAG" "Adding entries from '$UFBL_BLOCKLIST_FILE' to '$UFBL_BLOCKLIST_IPSET_NAME'."
         # Create a temporary file for ipset restore
         TEMP_FILE=$(mktemp)
         # Filter and validate entries, write to temp file
@@ -112,16 +112,16 @@ start)
         # Load entries into ipset using restore
         if [ -s "$TEMP_FILE" ]; then
             "${UFBL_IPSET_BIN}" restore -! < "$TEMP_FILE" || {
-                ufbl_log "$UFBL_TAG" "Warning: Failed to load entries from $UFBL_BLOCKLIST_FILE into ipset '$UFBL_BLOCKLIST_IPSET_NAME' via restore."
+                ufbl_log "$UFBL_TAG" "Warning: Failed to load entries from '$UFBL_BLOCKLIST_FILE' into ipset '$UFBL_BLOCKLIST_IPSET_NAME' via restore."
             }
         else
-            ufbl_log "$UFBL_TAG" "Warning: No valid entries found in $UFBL_BLOCKLIST_FILE after filtering."
+            ufbl_log "$UFBL_TAG" "Warning: No valid entries found in '$UFBL_BLOCKLIST_FILE' after filtering."
         fi
         # Clean up
         rm -f "$TEMP_FILE"
-        ufbl_log "$UFBL_TAG" "Finished adding entries from $UFBL_BLOCKLIST_FILE to $UFBL_BLOCKLIST_IPSET_NAME."
+        ufbl_log "$UFBL_TAG" "Finished adding entries from '$UFBL_BLOCKLIST_FILE' to '$UFBL_BLOCKLIST_IPSET_NAME'."
     else
-        ufbl_log "$UFBL_TAG" "Blocklist file $UFBL_BLOCKLIST_FILE was not found, had insecure permissions, or was empty. No entries added to ipset from file."
+        ufbl_log "$UFBL_TAG" "Blocklist file '$UFBL_BLOCKLIST_FILE' was not found, had insecure permissions, or was empty. No entries added to ipset from file."
     fi
 
     # --- IPTables Rules Setup for Blocklist ---

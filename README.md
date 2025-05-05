@@ -92,13 +92,15 @@
    ```bash
    echo -e "192.168.1.100\n10.0.0.0/8\n203.0.113.50" > /etc/ufw/ufw-whitelist.txt && chmod 600 /etc/ufw/ufw-whitelist.txt
    ```
-
-> [!NOTE]
-> Пример содержимого:\
+<details>
+<summary>Пример содержимого</summary>
+    
 > 192.168.1.100\
 > 10.0.0.0/8\
 > 203.0.113.50
-   
+
+</details>
+
 7. **Перезапустите UFW:**
    ```bash
    sudo systemctl restart ufw

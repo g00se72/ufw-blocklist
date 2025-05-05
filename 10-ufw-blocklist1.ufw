@@ -89,23 +89,39 @@ start)
          exit 1
     fi
 
-    # Add entries from the seed file to the blocklist ipset
+    # Add entries from the blocklist file to the blocklist ipset
     # This block only runs if the file was OK to use AND had entries
-    if [ "$UFBL_FILE_OK" = true ] && [ "$UFBL_SEED_LIST_COUNT" -gt 0 ]; then
-        ufbl_log "$UFBL_TAG" "Adding entries from $UFBL_SEED_FILE to $UFBL_IPSET_NAME."
-        # Run in background
-        (
-            egrep -o "${UFBL_CIDR_REGEX}" "$UFBL_SEED_FILE" |\
-            while read UFBL_ENTRY
-                do
-                    "${UFBL_IPSET_BIN}" add "$UFBL_IPSET_NAME" "$UFBL_ENTRY" 2>/dev/null || {
-                        ufbl_log "$UFBL_TAG" "Warning: Failed to add '$UFBL_ENTRY' from seed file to ipset '$UFBL_IPSET_NAME'."
-                    }
-                done
-             ufbl_log "$UFBL_TAG" "Finished adding entries from $UFBL_SEED_FILE to $UFBL_IPSET_NAME."
-        ) </dev/null >/dev/null 2>&1 &
+    if [ "$UFBL_FILE_OK" = true ] && [ "$UFBL_BLOCKLIST_COUNT" -gt 0 ]; then
+        ufbl_log "$UFBL_TAG" "Adding entries from $UFBL_BLOCKLIST_FILE to $UFBL_BLOCKLIST_IPSET_NAME."
+        # Create a temporary file for ipset restore
+        TEMP_FILE=$(mktemp)
+        # Filter and validate entries, write to temp file
+        egrep -o "${UFBL_CIDR_REGEX}" "$UFBL_BLOCKLIST_FILE" | \
+        while read UFBL_ENTRY; do
+            # Add /32 for single IPs if no subnet mask is present
+            if [[ ! "$UFBL_ENTRY" =~ / ]]; then
+                UFBL_ENTRY="${UFBL_ENTRY}/32"
+            fi
+            # Validate CIDR with ipcalc if available
+            if command -v ipcalc >/dev/null && ! ipcalc -c "$UFBL_ENTRY" >/dev/null 2>&1; then
+                ufbl_log "$UFBL_TAG" "Warning: Invalid CIDR '$UFBL_ENTRY' skipped."
+                continue
+            fi
+            echo "add ${UFBL_BLOCKLIST_IPSET_NAME} ${UFBL_ENTRY} -exist" >> "$TEMP_FILE"
+        done
+        # Load entries into ipset using restore
+        if [ -s "$TEMP_FILE" ]; then
+            "${UFBL_IPSET_BIN}" restore -! < "$TEMP_FILE" || {
+                ufbl_log "$UFBL_TAG" "Warning: Failed to load entries from $UFBL_BLOCKLIST_FILE into ipset '$UFBL_BLOCKLIST_IPSET_NAME' via restore."
+            }
+        else
+            ufbl_log "$UFBL_TAG" "Warning: No valid entries found in $UFBL_BLOCKLIST_FILE after filtering."
+        fi
+        # Clean up
+        rm -f "$TEMP_FILE"
+        ufbl_log "$UFBL_TAG" "Finished adding entries from $UFBL_BLOCKLIST_FILE to $UFBL_BLOCKLIST_IPSET_NAME."
     else
-         ufbl_log "$UFBL_TAG" "Seed file $UFBL_SEED_FILE was not found, had insecure permissions, or was empty. No entries added to ipset from seed."
+        ufbl_log "$UFBL_TAG" "Blocklist file $UFBL_BLOCKLIST_FILE was not found, had insecure permissions, or was empty. No entries added to ipset from file."
     fi
 
     # --- IPTables Rules Setup for Blocklist ---

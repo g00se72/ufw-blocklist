@@ -63,11 +63,23 @@ if [ $UFBL_CURL_RET -ne 0 ]; then
     exit 1
 fi
 
+# Create a temporary ipset for the NEW blocklist entries
+UFBL_TMP_SET_NAME="$(mktemp -u | cut -f2 -d'.')-tmp"
+
 # Filter the downloaded list
 UFBL_FILTERED_LIST=$(
     echo "$UFBL_RAW_LIST" | egrep -o "${UFBL_CIDR_REGEX}" | \
     while read UFBL_ENTRY; do
-        echo "add ${UFBL_CURRENT_IPSET_NAME} ${UFBL_ENTRY} -exist"
+        # Add /32 for single IPs if no subnet mask is present
+        if [[ ! "$UFBL_ENTRY" =~ / ]]; then
+            UFBL_ENTRY="${UFBL_ENTRY}/32"
+        fi
+        # Validate CIDR with ipcalc if available
+        if command -v ipcalc >/dev/null && ! ipcalc -c "$UFBL_ENTRY" >/dev/null 2>&1; then
+            ufbl_log "$UFBL_TAG" "Warning: Invalid CIDR '$UFBL_ENTRY' skipped."
+            continue
+        fi
+        echo "add ${UFBL_TMP_SET_NAME} ${UFBL_ENTRY} -exist"
     done
 )
 
@@ -95,8 +107,6 @@ if [ "$UFBL_ADD_COUNT" -eq "$UFBL_CURRENT_IPSET_COUNT" ] && [ "$UFBL_ADD_COUNT" 
     fi
 fi
 
-# Create a temporary ipset for the NEW blocklist entries
-UFBL_TMP_SET_NAME="$(mktemp -u | cut -f2 -d'.')-tmp"
 # Calculate the maximum number of entries for the ipset using headroom
 UFBL_MAX_ELEM_COUNT=$(expr $UFBL_ADD_COUNT + $UFBL_MAXELEM_HEADROOM) # Use count after filtering
 

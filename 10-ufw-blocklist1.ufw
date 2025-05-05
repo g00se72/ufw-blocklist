@@ -105,8 +105,8 @@ start)
             if [[ ! "$UFBL_ENTRY" =~ / ]]; then
                 UFBL_ENTRY="${UFBL_ENTRY}/32"
             fi
-            # Validate CIDR with ipcalc if available
-            if command -v ipcalc >/dev/null && ! ipcalc -c "$UFBL_ENTRY" >/dev/null 2>&1; then
+            # Validate CIDR with ip if available
+            if command -v ip >/dev/null && ! ip route get "$UFBL_ENTRY" >/dev/null 2>&1; then
                 ((INVALID_COUNT++))
                 if [ $INVALID_COUNT -le $MAX_EXAMPLES ]; then
                     INVALID_EXAMPLES="$INVALID_EXAMPLES'$UFBL_ENTRY', "

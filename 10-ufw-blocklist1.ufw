@@ -95,6 +95,9 @@ start)
         ufbl_log "$UFBL_TAG" "Adding entries from '$UFBL_SEED_FILE' to '$UFBL_IPSET_NAME'."
         # Create a temporary file for ipset restore
         TEMP_FILE=$(mktemp)
+        INVALID_COUNT=0
+        INVALID_EXAMPLES=""
+        MAX_EXAMPLES=5
         # Filter and validate entries, write to temp file
         egrep -o "${UFBL_CIDR_REGEX}" "$UFBL_SEED_FILE" | \
         while read UFBL_ENTRY; do
@@ -104,11 +107,17 @@ start)
             fi
             # Validate CIDR with ipcalc if available
             if command -v ipcalc >/dev/null && ! ipcalc -c "$UFBL_ENTRY" >/dev/null 2>&1; then
-                ufbl_log "$UFBL_TAG" "Warning: Invalid CIDR '$UFBL_ENTRY' skipped."
+                ((INVALID_COUNT++))
+                if [ $INVALID_COUNT -le $MAX_EXAMPLES ]; then
+                    INVALID_EXAMPLES="$INVALID_EXAMPLES'$UFBL_ENTRY', "
+                fi
                 continue
             fi
             echo "add ${UFBL_IPSET_NAME} ${UFBL_ENTRY} -exist" >> "$TEMP_FILE"
         done
+        if [ $INVALID_COUNT -gt 0 ]; then
+            ufbl_log "$UFBL_TAG" "Warning: Skipped $INVALID_COUNT invalid CIDR entries. Examples: ${INVALID_EXAMPLES%*, }"
+        fi
         # Load entries into ipset using restore
         if [ -s "$TEMP_FILE" ]; then
             "${UFBL_IPSET_BIN}" restore -! < "$TEMP_FILE" || {

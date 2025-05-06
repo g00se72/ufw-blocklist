@@ -67,8 +67,8 @@ start)
     if [ "$UFBL_FILE_OK" = true ]; then
          # Count the number of entries in the blocklist seed list
          # Use the refined regex from the config file to count only valid entries
-         UFBL_SEED_LIST_COUNT=$(egrep -c "${UFBL_CIDR_REGEX}" "$UFBL_SEED_FILE")
-         UFBL_MAX_ELEM_COUNT=$(expr $UFBL_SEED_LIST_COUNT + $UFBL_MAXELEM_HEADROOM)
+         UFBL_SEED_LIST_COUNT=$(grep -E -c "${UFBL_CIDR_REGEX}" "$UFBL_SEED_FILE")
+         UFBL_MAX_ELEM_COUNT=$(($UFBL_SEED_LIST_COUNT + $UFBL_MAXELEM_HEADROOM))
          ufbl_log "$UFBL_TAG" "Calculated maxelem for ipset based on seed file: ${UFBL_MAX_ELEM_COUNT}"
     else
          # File was not OK (missing or bad permissions), create an empty set with default headroom
@@ -99,7 +99,7 @@ start)
         #INVALID_EXAMPLES=""
         #MAX_EXAMPLES=5
         # Filter and validate entries, write to temp file
-        egrep -o "${UFBL_CIDR_REGEX}" "$UFBL_SEED_FILE" | \
+        grep -E -o "${UFBL_CIDR_REGEX}" "$UFBL_SEED_FILE" | \
         while read UFBL_ENTRY; do
             # Add /32 for single IPs if no subnet mask is present
             if [[ ! "$UFBL_ENTRY" =~ / ]]; then

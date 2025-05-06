@@ -230,7 +230,13 @@ status)
     # Only attempt to list rules if the set exists (to avoid iptables errors)
     if ufbl_set_exists "$UFBL_WHITELIST_IPSET_NAME"; then
         echo "--- IPTables Rules Status (Whitelist) ---"
-        iptables -L -nvx | grep "$UFBL_WHITELIST_IPSET_NAME" | grep -E 'match-set.*(src|dst)'
+        if [ "$UFBL_IPTABLES_FORMATTED" = "yes" ]; then
+            echo "pkts    | bytes   | target                  | prot | opt | in  | out  | source          | destination     | set-options"
+            iptables -L -nvx | grep "$UFBL_WHITELIST_IPSET_NAME" | grep -E 'match-set.*(src|dst)' | \
+            awk '{printf "%-7s | %-7s | %-23s | %-4s | %-3s | %-3s | %-4s | %-15s | %-15s | %s\n", $1, $2, $3, $4, $5, $6, $7, $8, $9, substr($0, index($0, $10))}'
+        else
+            iptables -L -nvx | grep "$UFBL_WHITELIST_IPSET_NAME" | grep -E 'match-set.*(src|dst)'
+        fi
     else
         echo "IPTables rules for '${UFBL_WHITELIST_IPSET_NAME}' ipset not found (ipset does not exist)."
     fi

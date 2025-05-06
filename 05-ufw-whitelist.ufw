@@ -57,8 +57,8 @@ start)
     if [ "$UFBL_FILE_OK" = true ]; then
          # Count the number of entries in the blocklist seed list
          # Use the refined regex from the config file to count only valid entries
-         UFBL_WHITELIST_COUNT=$(egrep -c "${UFBL_CIDR_REGEX}" "$UFBL_WHITELIST_FILE")
-         UFBL_WHITELIST_MAX_ELEM=$(expr $UFBL_WHITELIST_COUNT + $UFBL_WHITELIST_MAXELEM_HEADROOM)
+         UFBL_WHITELIST_COUNT=$(grep -E -c "${UFBL_CIDR_REGEX}" "$UFBL_WHITELIST_FILE")
+         UFBL_WHITELIST_MAX_ELEM=$(($UFBL_WHITELIST_COUNT + $UFBL_WHITELIST_MAXELEM_HEADROOM))
          ufbl_log "$UFBL_TAG" "Calculated maxelem for ipset based on whitelist file: ${UFBL_WHITELIST_MAX_ELEM}"
     else
          # File was not OK (missing or bad permissions), create an empty set with default headroom
@@ -84,7 +84,7 @@ start)
         ufbl_log "$UFBL_TAG" "Adding entries from $UFBL_WHITELIST_FILE to $UFBL_WHITELIST_IPSET_NAME."
         # Run in background
         (
-            egrep -o "${UFBL_CIDR_REGEX}" "$UFBL_WHITELIST_FILE" |\
+            grep -E -o "${UFBL_CIDR_REGEX}" "$UFBL_WHITELIST_FILE" |\
             while read UFBL_ENTRY
                 do
                     "${UFBL_IPSET_BIN}" add "$UFBL_WHITELIST_IPSET_NAME" "$UFBL_ENTRY" 2>/dev/null || {
@@ -212,7 +212,7 @@ status)
         "${UFBL_IPSET_BIN}" list "$UFBL_WHITELIST_IPSET_NAME" -t
         echo "Whitelist file: $UFBL_WHITELIST_FILE"
         if [ -f "$UFBL_WHITELIST_FILE" ]; then
-            echo "Entries in whitelist file: $(egrep -c "${UFBL_CIDR_REGEX}" "$UFBL_WHITELIST_FILE")"
+            echo "Entries in whitelist file: $(grep -E -c "${UFBL_CIDR_REGEX}" "$UFBL_WHITELIST_FILE")"
         else
             echo "Whitelist file not found."
         fi

@@ -36,7 +36,7 @@ UFBL_DEFAULT_MAXELEM_HEADROOM=128
 # --- Blocklist 1 Settings ---
 UFBL_IPSET_NAME1="ufw-blocklist1"
 UFBL_SEED_FILE1="/etc/ufw/ufw-blocklist1.txt"
-UFBL_MAXELEM_HEADROOM1=128
+#UFBL_MAXELEM_HEADROOM1=128 # Default value will
 UFBL_URL1='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/4.txt'
 UFBL_MIN_ENTRIES1=1000
 UFBL_WARN_ON_NO_CHANGE1="yes"
@@ -44,7 +44,7 @@ UFBL_WARN_ON_NO_CHANGE1="yes"
 # --- Blocklist 2 Settings Example ---
 # UFBL_IPSET_NAME2="ufw-blocklist-another"
 # UFBL_SEED_FILE2="/etc/anotherlist.txt"
-# UFBL_MAXELEM_HEADROOM2= # Default value will be used if commented
+# UFBL_MAXELEM_HEADROOM2=200
 # UFBL_URL2='http://example.com/anotherlist.txt'
 # UFBL_MIN_ENTRIES2=500
 # UFBL_WARN_ON_NO_CHANGE2="no"

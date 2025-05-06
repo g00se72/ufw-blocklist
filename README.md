@@ -36,7 +36,7 @@
 
 ## Установка
 
-Предполагается, что у вас уже установлен и настроен UFW, ipset.
+Предполагается, что у вас уже установлены `ipset`, `iptables`, `curl`, `logger`, `stat`, `egrep`, `mktemp`, `run-parts`, `expr`, `cut`, `tail`, `journalctl`
 
 1. Создайте бэкап оригинального `after.init` скрипта UFW
    ```bash

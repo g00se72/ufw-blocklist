@@ -36,7 +36,7 @@
 
 ## Установка
 
-Предполагается, что у вас уже установлены `ipset`, `iptables`, `curl`, `logger`, `stat`, `egrep`, `mktemp`, `run-parts`, `expr`, `cut`, `tail`, `journalctl`
+Предполагается, что у вас уже установлены `ipset`, `iptables`, `curl`, `logger`, `stat`, `grep`, `mktemp`, `run-parts`, `cut`, `tail`, `journalctl`
 
 1. Создайте бэкап оригинального `after.init` скрипта UFW
    ```bash
@@ -84,7 +84,7 @@
    sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt' -o /etc/ufw/ufw-blocklist1.txt
    ```
    ```bash
-   chmod 600 /etc/ufw/ufw-blocklist1.txt
+   sudo chown root:root /etc/ufw/ufw-blocklist1.txt && sudo chmod 600 /etc/ufw/ufw-blocklist1.txt
    ```
    Примечание: Убедитесь, что URL соответствует вашим потребностям. Этот файл используется только для начального заполнения `ipset` при старте UFW. Ежедневное обновление будет использовать URL, указанный в конфигурационном файле.
 
@@ -92,7 +92,7 @@
 
    Скрипт `05-ufw-whitelist.ufw` при запуске UFW пытается загрузить начальный список из файла, указанного в `UFBL_WHITELIST_FILE`. Вы можете создать и заполнить этот файл вручную любым способом:
    ```bash
-   echo -e "192.168.1.100\n10.0.0.0/8\n203.0.113.50" > /etc/ufw/ufw-whitelist.txt && chmod 600 /etc/ufw/ufw-whitelist.txt
+   echo -e "192.168.1.100\n10.0.0.0/8\n203.0.113.50" > /etc/ufw/ufw-whitelist.txt && sudo chown root:root /etc/ufw/ufw-whitelist.txt && chmod 600 /etc/ufw/ufw-whitelist.txt
    ```
 <details>
 <summary>Пример содержимого</summary>

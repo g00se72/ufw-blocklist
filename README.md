@@ -79,7 +79,7 @@
    
    Скрипт `10-ufw-blocklist1.ufw` при запуске UFW пытается загрузить начальный список из файла, указанного в `UFBL_SEED_FILE<Index>`. Вы можете создать этот файл вручную или скачать список командой:
    ```bash
-   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/stamparm/ipsum/master/levels/4.txt' -o /etc/ufw/ufw-blocklist1.txt
+   sudo curl -sS -f --compressed 'https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt' -o /etc/ufw/ufw-blocklist1.txt
    ```
    ```bash
    chmod 600 /etc/ufw/ufw-blocklist1.txt

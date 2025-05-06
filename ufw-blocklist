@@ -37,7 +37,7 @@ UFBL_DEFAULT_MAXELEM_HEADROOM=128
 UFBL_IPSET_NAME1="ufw-blocklist1"
 UFBL_SEED_FILE1="/etc/ufw/ufw-blocklist1.txt"
 #UFBL_MAXELEM_HEADROOM1=128 # Default value will
-UFBL_URL1='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/4.txt'
+UFBL_URL1='https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt'
 UFBL_MIN_ENTRIES1=1000
 UFBL_WARN_ON_NO_CHANGE1="yes"
 

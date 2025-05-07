@@ -176,26 +176,47 @@ start)
 stop)
     ufbl_log "$UFBL_TAG" "Stopping ${UFBL_WHITELIST_IPSET_NAME} whitelist."
     # Delete whitelist resources
-    # Only attempt to remove rules and destroy set if the set exists
+    # Remove rules and destroy set if the set exists
     if ufbl_set_exists "$UFBL_WHITELIST_IPSET_NAME"; then
 
-        iptables -D ufw-user-input -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT 2>/dev/null || true
-        iptables -D ufw-user-input -j DROP 2>/dev/null || true
-        iptables -D INPUT -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT 2>/dev/null || true
-        iptables -D INPUT -j DROP 2>/dev/null || true
+        # --- Deleting INPUT rules ---
+        # Delete ACCEPT rule from ufw-user-input (added with -I)
+        iptables -D ufw-user-input -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-input ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
+        # Delete DROP rule from ufw-user-input (added with -A, only if UFBL_WHITELIST_ONLY_INPUT="yes")
+        iptables -D ufw-user-input -j DROP -m comment --comment "ufw-whitelist-only-block-input ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
 
-        iptables -D ufw-user-output -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT 2>/dev/null || true
-        iptables -D ufw-user-output -j DROP 2>/dev/null || true
-        iptables -D OUTPUT -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT 2>/dev/null || true
-        iptables -D OUTPUT -j DROP 2>/dev/null || true
+        # Delete ACCEPT rule from INPUT (fallback, added with -I)
+        iptables -D INPUT -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-input ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
+        # Delete DROP rule from INPUT (fallback, added with -A, only if UFBL_WHITELIST_ONLY_INPUT="yes")
+        iptables -D INPUT -j DROP -m comment --comment "ufw-whitelist-only-block-input ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
 
-        iptables -D ufw-user-forward -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT 2>/dev/null || true
-        iptables -D ufw-user-forward -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT 2>/dev/null || true
-        iptables -D ufw-user-forward -j DROP 2>/dev/null || true
-        iptables -D FORWARD -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT 2>/dev/null || true
-        iptables -D FORWARD -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT 2>/dev/null || true
-        iptables -D FORWARD -j DROP 2>/dev/null || true
+        # --- Deleting OUTPUT rules ---
+        # Delete ACCEPT rule from ufw-user-output
+        iptables -D ufw-user-output -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT -m comment --comment "ufw-whitelist-output ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
+        # Delete DROP rule from ufw-user-output
+        iptables -D ufw-user-output -j DROP -m comment --comment "ufw-whitelist-only-block-output ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
 
+        # Delete ACCEPT rule from OUTPUT (fallback)
+        iptables -D OUTPUT -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT -m comment --comment "ufw-whitelist-output ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
+        # Delete DROP rule from OUTPUT (fallback)
+        iptables -D OUTPUT -j DROP -m comment --comment "ufw-whitelist-only-block-output ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
+
+        # --- Deleting FORWARD rules ---
+        # Delete ACCEPT src rule from ufw-user-forward
+        iptables -D ufw-user-forward -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-forward-src ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
+        # Delete ACCEPT dst rule from ufw-user-forward
+        iptables -D ufw-user-forward -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT -m comment --comment "ufw-whitelist-forward-dst ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
+        # Delete DROP rule from ufw-user-forward
+        iptables -D ufw-user-forward -j DROP -m comment --comment "ufw-whitelist-only-block-forward ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
+
+        # Delete ACCEPT src rule from FORWARD (fallback)
+        iptables -D FORWARD -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-forward-src ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
+        # Delete ACCEPT dst rule from FORWARD (fallback)
+        iptables -D FORWARD -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT -m comment --comment "ufw-whitelist-forward-dst ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
+        # Delete DROP rule from FORWARD (fallback)
+        iptables -D FORWARD -j DROP -m comment --comment "ufw-whitelist-only-block-forward ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
+
+        # Flush и destroy
         "${UFBL_IPSET_BIN}" flush "$UFBL_WHITELIST_IPSET_NAME" || ufbl_log "$UFBL_TAG" "Warning: Failed to flush whitelist ipset '$UFBL_WHITELIST_IPSET_NAME' during stop."
         "${UFBL_IPSET_BIN}" destroy "$UFBL_WHITELIST_IPSET_NAME" || ufbl_log "$UFBL_TAG" "Warning: Failed to destroy whitelist ipset '$UFBL_WHITELIST_IPSET_NAME' during stop."
         ufbl_log "$UFBL_TAG" "Finished stopping ${UFBL_WHITELIST_IPSET_NAME} whitelist (resources removed)."

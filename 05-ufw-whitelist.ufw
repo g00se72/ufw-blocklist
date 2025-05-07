@@ -34,7 +34,6 @@ start)
     fi
 
     ufbl_log "$UFBL_TAG" "Starting ${UFBL_WHITELIST_IPSET_NAME} whitelist initialization."
-
     # Check if whitelist file exists and security check
     UFBL_FILE_OK=false
 
@@ -55,10 +54,10 @@ start)
     # Use -exist to avoid errors if the set already exists (e.g., after ufw restart)
     # Determine maxelem based on whether the file was OK to use
     if [ "$UFBL_FILE_OK" = true ]; then
-         # Count the number of entries in the blocklist seed list
+         # Count the number of entries in the whitelist seed list
          # Use the refined regex from the config file to count only valid entries
          UFBL_WHITELIST_COUNT=$(grep -E -c "${UFBL_CIDR_REGEX}" "$UFBL_WHITELIST_FILE")
-         UFBL_WHITELIST_MAX_ELEM=$(($UFBL_WHITELIST_COUNT + $UFBL_WHITELIST_MAXELEM_HEADROOM))
+         UFBL_WHITELIST_MAX_ELEM=$((UFBL_WHITELIST_COUNT + UFBL_WHITELIST_MAXELEM_HEADROOM))
          ufbl_log "$UFBL_TAG" "Calculated maxelem for ipset based on whitelist file: ${UFBL_WHITELIST_MAX_ELEM}"
     else
          # File was not OK (missing or bad permissions), create an empty set with default headroom
@@ -84,7 +83,7 @@ start)
         ufbl_log "$UFBL_TAG" "Adding entries from $UFBL_WHITELIST_FILE to $UFBL_WHITELIST_IPSET_NAME."
         # Run in background
         (
-            grep -E -o "${UFBL_CIDR_REGEX}" "$UFBL_WHITELIST_FILE" |\
+            grep -E -o "${UFBL_CIDR_REGEX}" "$UFBL_WHITELIST_FILE" |\ # Используем grep -E
             while read UFBL_ENTRY
                 do
                     "${UFBL_IPSET_BIN}" add "$UFBL_WHITELIST_IPSET_NAME" "$UFBL_ENTRY" 2>/dev/null || {
@@ -94,7 +93,7 @@ start)
             ufbl_log "$UFBL_TAG" "Finished adding entries from $UFBL_WHITELIST_FILE to $UFBL_WHITELIST_IPSET_NAME."
         ) </dev/null >/dev/null 2>&1 &
     else
-         ufbl_log "$UFBL_TAG" "Whitelist file $UFBL_WHITELIST_FILE was not found, had insecure permissions, or was empty. No entries added to ipset from file."
+        ufbl_log "$UFBL_TAG" "Whitelist file $UFBL_WHITELIST_FILE was not found, had insecure permissions, or was empty. No entries added to ipset from file."
     fi
 
     # --- IPTables Rules Setup for Whitelist ---
@@ -104,64 +103,88 @@ start)
     # ONLY add rules if the ipset was successfully created
     if ufbl_set_exists "$UFBL_WHITELIST_IPSET_NAME"; then
 
-        # Accept inbound from whitelist
+        # --- INPUT Chain Rules ---
         if ufbl_chain_exists ufw-user-input; then
-            iptables -D ufw-user-input -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT || true # Remove if exists
+            # Delete existing ACCEPT rule (if any) with comment
+            iptables -D ufw-user-input -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-input ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
+            # Insert new ACCEPT rule
             iptables -I ufw-user-input -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-input ${UFBL_WHITELIST_IPSET_NAME}"
+
+            # Handle whitelist-only mode for INPUT
             if [ "$UFBL_WHITELIST_ONLY_INPUT" = "yes" ]; then
-                iptables -D ufw-user-input -j DROP || true # Remove if exists
+                iptables -D ufw-user-input -j DROP -m comment --comment "ufw-whitelist-only-block-input ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
                 iptables -A ufw-user-input -j DROP -m comment --comment "ufw-whitelist-only-block-input ${UFBL_WHITELIST_IPSET_NAME}"
+            else
+                # Ensure the DROP rule is removed if mode is not "yes"
+                iptables -D ufw-user-input -j DROP -m comment --comment "ufw-whitelist-only-block-input ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
             fi
         else
-             ufbl_log "$UFBL_TAG" "Warning: ufw-user-input chain not found. Cannot insert whitelist rule with high precedence. Falling back to INPUT chain."
-             # Fallback: Insert into INPUT chain, but precedence might be lower
-             iptables -D INPUT -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT || true # Remove if exists
-             iptables -I INPUT -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-input ${UFBL_WHITELIST_IPSET_NAME} (fallback)"
+            ufbl_log "$UFBL_TAG" "Warning: ufw-user-input chain not found. Cannot insert whitelist rule with high precedence. Falling back to INPUT chain."
+            # Fallback: INPUT chain
+            iptables -D INPUT -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-input ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
+            iptables -I INPUT -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-input ${UFBL_WHITELIST_IPSET_NAME} (fallback)"
+
             if [ "$UFBL_WHITELIST_ONLY_INPUT" = "yes" ]; then
-                iptables -D INPUT -j DROP || true # Remove if exists
+                iptables -D INPUT -j DROP -m comment --comment "ufw-whitelist-only-block-input ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
                 iptables -A INPUT -j DROP -m comment --comment "ufw-whitelist-only-block-input ${UFBL_WHITELIST_IPSET_NAME} (fallback)"
+            else
+                iptables -D INPUT -j DROP -m comment --comment "ufw-whitelist-only-block-input ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
             fi
         fi
 
-        # Accept outbound to whitelist
+        # --- OUTPUT Chain Rules ---
         if ufbl_chain_exists ufw-user-output; then
-            iptables -D ufw-user-output -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT || true # Remove if exists
+            iptables -D ufw-user-output -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT -m comment --comment "ufw-whitelist-output ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
             iptables -I ufw-user-output -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT -m comment --comment "ufw-whitelist-output ${UFBL_WHITELIST_IPSET_NAME}"
+
             if [ "$UFBL_WHITELIST_ONLY_OUTPUT" = "yes" ]; then
-                iptables -D ufw-user-output -j DROP || true # Remove if exists
+                iptables -D ufw-user-output -j DROP -m comment --comment "ufw-whitelist-only-block-output ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
                 iptables -A ufw-user-output -j DROP -m comment --comment "ufw-whitelist-only-block-output ${UFBL_WHITELIST_IPSET_NAME}"
+            else
+                iptables -D ufw-user-output -j DROP -m comment --comment "ufw-whitelist-only-block-output ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
             fi
         else
             ufbl_log "$UFBL_TAG" "Warning: ufw-user-output chain not found. Cannot insert whitelist rule with high precedence. Falling back to OUTPUT chain."
-            # Fallback: Insert into OUTPUT chain
-            iptables -D OUTPUT -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT || true # Remove if exists
+            # Fallback: OUTPUT chain
+            iptables -D OUTPUT -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT -m comment --comment "ufw-whitelist-output ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
             iptables -I OUTPUT -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT -m comment --comment "ufw-whitelist-output ${UFBL_WHITELIST_IPSET_NAME} (fallback)"
+
             if [ "$UFBL_WHITELIST_ONLY_OUTPUT" = "yes" ]; then
-                iptables -D OUTPUT -j DROP || true # Remove if exists
+                iptables -D OUTPUT -j DROP -m comment --comment "ufw-whitelist-only-block-output ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
                 iptables -A OUTPUT -j DROP -m comment --comment "ufw-whitelist-only-block-output ${UFBL_WHITELIST_IPSET_NAME} (fallback)"
+            else
+                iptables -D OUTPUT -j DROP -m comment --comment "ufw-whitelist-only-block-output ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
             fi
         fi
 
-        # Accept forwarding to/from whitelist (if applicable)
+        # --- FORWARD Chain Rules ---
         if ufbl_chain_exists ufw-user-forward; then
-            iptables -D ufw-user-forward -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT || true # Remove if exists
+            iptables -D ufw-user-forward -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-forward-src ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
             iptables -I ufw-user-forward -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-forward-src ${UFBL_WHITELIST_IPSET_NAME}"
-            iptables -D ufw-user-forward -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT || true # Remove if exists
+
+            iptables -D ufw-user-forward -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT -m comment --comment "ufw-whitelist-forward-dst ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
             iptables -I ufw-user-forward -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT -m comment --comment "ufw-whitelist-forward-dst ${UFBL_WHITELIST_IPSET_NAME}"
+
             if [ "$UFBL_WHITELIST_ONLY_FORWARD" = "yes" ]; then
-                iptables -D ufw-user-forward -j DROP || true # Remove if exists
+                iptables -D ufw-user-forward -j DROP -m comment --comment "ufw-whitelist-only-block-forward ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
                 iptables -A ufw-user-forward -j DROP -m comment --comment "ufw-whitelist-only-block-forward ${UFBL_WHITELIST_IPSET_NAME}"
+            else
+                iptables -D ufw-user-forward -j DROP -m comment --comment "ufw-whitelist-only-block-forward ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
             fi
         else
             ufbl_log "$UFBL_TAG" "Warning: ufw-user-forward chain not found. Cannot insert whitelist rule with high precedence. Falling back to FORWARD chain."
-            # Fallback: Insert into FORWARD chain
-            iptables -D FORWARD -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT || true # Remove if exists
+            # Fallback: FORWARD chain
+            iptables -D FORWARD -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-forward-src ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
             iptables -I FORWARD -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-forward-src ${UFBL_WHITELIST_IPSET_NAME} (fallback)"
-            iptables -D FORWARD -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT || true # Remove if exists
+
+            iptables -D FORWARD -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT -m comment --comment "ufw-whitelist-forward-dst ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
             iptables -I FORWARD -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT -m comment --comment "ufw-whitelist-forward-dst ${UFBL_WHITELIST_IPSET_NAME} (fallback)"
+
             if [ "$UFBL_WHITELIST_ONLY_FORWARD" = "yes" ]; then
-                iptables -D FORWARD -j DROP || true # Remove if exists
+                iptables -D FORWARD -j DROP -m comment --comment "ufw-whitelist-only-block-forward ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
                 iptables -A FORWARD -j DROP -m comment --comment "ufw-whitelist-only-block-forward ${UFBL_WHITELIST_IPSET_NAME} (fallback)"
+            else
+                iptables -D FORWARD -j DROP -m comment --comment "ufw-whitelist-only-block-forward ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
             fi
         fi
 
@@ -180,43 +203,25 @@ stop)
     if ufbl_set_exists "$UFBL_WHITELIST_IPSET_NAME"; then
 
         # --- Deleting INPUT rules ---
-        # Delete ACCEPT rule from ufw-user-input (added with -I)
         iptables -D ufw-user-input -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-input ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
-        # Delete DROP rule from ufw-user-input (added with -A, only if UFBL_WHITELIST_ONLY_INPUT="yes")
         iptables -D ufw-user-input -j DROP -m comment --comment "ufw-whitelist-only-block-input ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
-
-        # Delete ACCEPT rule from INPUT (fallback, added with -I)
         iptables -D INPUT -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-input ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
-        # Delete DROP rule from INPUT (fallback, added with -A, only if UFBL_WHITELIST_ONLY_INPUT="yes")
         iptables -D INPUT -j DROP -m comment --comment "ufw-whitelist-only-block-input ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
 
         # --- Deleting OUTPUT rules ---
-        # Delete ACCEPT rule from ufw-user-output
         iptables -D ufw-user-output -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT -m comment --comment "ufw-whitelist-output ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
-        # Delete DROP rule from ufw-user-output
         iptables -D ufw-user-output -j DROP -m comment --comment "ufw-whitelist-only-block-output ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
-
-        # Delete ACCEPT rule from OUTPUT (fallback)
         iptables -D OUTPUT -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT -m comment --comment "ufw-whitelist-output ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
-        # Delete DROP rule from OUTPUT (fallback)
         iptables -D OUTPUT -j DROP -m comment --comment "ufw-whitelist-only-block-output ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
 
         # --- Deleting FORWARD rules ---
-        # Delete ACCEPT src rule from ufw-user-forward
         iptables -D ufw-user-forward -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-forward-src ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
-        # Delete ACCEPT dst rule from ufw-user-forward
         iptables -D ufw-user-forward -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT -m comment --comment "ufw-whitelist-forward-dst ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
-        # Delete DROP rule from ufw-user-forward
         iptables -D ufw-user-forward -j DROP -m comment --comment "ufw-whitelist-only-block-forward ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
-
-        # Delete ACCEPT src rule from FORWARD (fallback)
         iptables -D FORWARD -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-forward-src ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
-        # Delete ACCEPT dst rule from FORWARD (fallback)
         iptables -D FORWARD -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT -m comment --comment "ufw-whitelist-forward-dst ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
-        # Delete DROP rule from FORWARD (fallback)
         iptables -D FORWARD -j DROP -m comment --comment "ufw-whitelist-only-block-forward ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
 
-        # Flush и destroy
         "${UFBL_IPSET_BIN}" flush "$UFBL_WHITELIST_IPSET_NAME" || ufbl_log "$UFBL_TAG" "Warning: Failed to flush whitelist ipset '$UFBL_WHITELIST_IPSET_NAME' during stop."
         "${UFBL_IPSET_BIN}" destroy "$UFBL_WHITELIST_IPSET_NAME" || ufbl_log "$UFBL_TAG" "Warning: Failed to destroy whitelist ipset '$UFBL_WHITELIST_IPSET_NAME' during stop."
         ufbl_log "$UFBL_TAG" "Finished stopping ${UFBL_WHITELIST_IPSET_NAME} whitelist (resources removed)."
@@ -271,33 +276,37 @@ status)
 
 flush-all)
     ufbl_log "$UFBL_TAG" "Flushing ${UFBL_WHITELIST_IPSET_NAME} whitelist entries and resetting iptables counters."
-
     # Flush whitelist set entries if it exists
     if ufbl_set_exists "$UFBL_WHITELIST_IPSET_NAME"; then
         "${UFBL_IPSET_BIN}" flush "$UFBL_WHITELIST_IPSET_NAME" || ufbl_log "$UFBL_TAG" "Warning: Failed to flush whitelist ipset '$UFBL_WHITELIST_IPSET_NAME' during flush-all."
-
         # Reset iptables accounting for rules related to the whitelist
         # Note: This assumes the comments added during 'start' are unique and stable.
-        # Only reset if the set exists (to avoid iptables errors)
         # Reset INPUT chain counters for whitelist rules
-        iptables -Z ufw-user-input -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src 2>/dev/null || true
-        iptables -Z INPUT -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT 2>/dev/null || true # Fallback rule
+        iptables -Z ufw-user-input -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-input ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
+        iptables -Z INPUT -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-input ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
+        iptables -Z ufw-user-input -j DROP -m comment --comment "ufw-whitelist-only-block-input ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
+        iptables -Z INPUT -j DROP -m comment --comment "ufw-whitelist-only-block-input ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
 
         # Reset OUTPUT chain counters for whitelist rules
-        iptables -Z ufw-user-output -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst 2>/dev/null || true
-        iptables -Z OUTPUT -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT 2>/dev/null || true # Fallback rule
+        iptables -Z ufw-user-output -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT -m comment --comment "ufw-whitelist-output ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
+        iptables -Z OUTPUT -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT -m comment --comment "ufw-whitelist-output ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
+        iptables -Z ufw-user-output -j DROP -m comment --comment "ufw-whitelist-only-block-output ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
+        iptables -Z OUTPUT -j DROP -m comment --comment "ufw-whitelist-only-block-output ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
 
         # Reset FORWARD chain counters for whitelist rules
-        iptables -Z ufw-user-forward -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src 2>/dev/null || true
-        iptables -Z FORWARD -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT 2>/dev/null || true # Fallback rule
-        iptables -Z ufw-user-forward -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst 2>/dev/null || true
-        iptables -Z FORWARD -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT 2>/dev/null || true # Fallback rule
+        iptables -Z ufw-user-forward -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-forward-src ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
+        iptables -Z FORWARD -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" src -j ACCEPT -m comment --comment "ufw-whitelist-forward-src ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
+        iptables -Z ufw-user-forward -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT -m comment --comment "ufw-whitelist-forward-dst ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
+        iptables -Z FORWARD -m set --match-set "$UFBL_WHITELIST_IPSET_NAME" dst -j ACCEPT -m comment --comment "ufw-whitelist-forward-dst ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
+        iptables -Z ufw-user-forward -j DROP -m comment --comment "ufw-whitelist-only-block-forward ${UFBL_WHITELIST_IPSET_NAME}" 2>/dev/null || true
+        iptables -Z FORWARD -j DROP -m comment --comment "ufw-whitelist-only-block-forward ${UFBL_WHITELIST_IPSET_NAME} (fallback)" 2>/dev/null || true
 
         ufbl_log "$UFBL_TAG" "Finished flushing ${UFBL_WHITELIST_IPSET_NAME} whitelist (entries flushed, counters reset)."
     else
         echo "Whitelist ipset '${UFBL_WHITELIST_IPSET_NAME}' does not exist. Nothing to flush."
     fi
     ;;
+
 *)
     # This case should ideally not be reached if called by the main after.init script
     ufbl_log "$UFBL_TAG" "Unsupported action '$1' passed to ${0}. Usage: {start|stop|flush-all|status}" >&2

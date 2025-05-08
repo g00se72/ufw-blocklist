@@ -53,8 +53,8 @@ start)
         if [ "$(stat -c %U:%G:%a "$UFBL_SEED_FILE")" != "root:root:600" ]; then
             ufbl_log "$UFBL_TAG" "Critical Error: $UFBL_SEED_FILE has insecure permissions ($(stat -c %U:%G:%a "$UFBL_SEED_FILE")). Expected root:root 600. Cannot initialize blocklist ipset from seed." >&2
         else
-             ufbl_log "$UFBL_TAG" "Blocklist seed file $UFBL_SEED_FILE exists and has correct root:root 600 permissions."
-             UFBL_FILE_OK=true
+            ufbl_log "$UFBL_TAG" "Blocklist seed file $UFBL_SEED_FILE exists and has correct root:root 600 permissions."
+            UFBL_FILE_OK=true
         fi
     else
         # File does not exist. Log a warning and proceed, the ipset will be empty

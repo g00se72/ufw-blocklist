@@ -120,6 +120,7 @@
 * `UFBL_MIN_ENTRIES<Index>`: Минимальное ожидаемое количество записей в списке `ipsum`
 * `UFBL_WARN_ON_NO_CHANGE<Index>`: Включает/отключает предупреждение, если количество записей не изменилось (`yes`/`no`)
 * `UFBL_CIDR_REGEX`: Регулярное выражение для валидации записей как CIDR (IPv4)
+* `UFBL_ENABLE_IP_ROUTE_VALIDATION`: Включить проверку с использованием системной команды ip route get. При включении каждая запись из списка будет проверяться перед добавлением в ipset
 * `UFBL_WHITELIST_IPSET_NAME`: Имя `ipset` для белого списка
 * `UFBL_WHITELIST_FILE`: Путь к файлу белого списка
 * `UFBL_WHITELIST_MAXELEM_HEADROOM`: Дополнительное место в `ipset` сверх количества записей в списке

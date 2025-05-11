@@ -86,12 +86,11 @@ echo "$UFBL_RAW_LIST" | grep -E -o "${UFBL_CIDR_REGEX}" | while read -r UFBL_ENT
     fi
     echo "add ${UFBL_TMP_SET_NAME} ${UFBL_ENTRY} -exist" >> "$TEMP_FILTERED_FILE"
 done
-
 if [ $INVALID_COUNT -gt 0 ]; then
     ufbl_log "$UFBL_TAG" "Warning: Skipped $INVALID_COUNT invalid CIDR entries. Examples: ${INVALID_EXAMPLES%*, }"
 fi
-
 UFBL_FILTERED_LIST=$(cat "$TEMP_FILTERED_FILE")
+# Clean up
 rm -f "$TEMP_FILTERED_FILE"
 
 # Count the number of entries that will be added after filtering

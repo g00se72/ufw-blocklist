@@ -99,7 +99,7 @@ start)
         INVALID_EXAMPLES=""
         MAX_EXAMPLES=5
         # Filter and validate entries, write to temp file
-        grep -E -o "${UFBL_CIDR_REGEX}" "$UFBL_SEED_FILE" | \
+        #grep -E -o "${UFBL_CIDR_REGEX}" "$UFBL_SEED_FILE" | \
         while read UFBL_ENTRY; do
             # Add /32 for single IPs if no subnet mask is present
             if [[ ! "$UFBL_ENTRY" =~ / ]]; then
@@ -116,7 +116,7 @@ start)
                 fi
             fi
             echo "add ${UFBL_IPSET_NAME} ${UFBL_ENTRY} -exist" >> "$TEMP_FILE"
-        done
+        done < <(grep -E -o "${UFBL_CIDR_REGEX}" "$UFBL_SEED_FILE")
         if [ $INVALID_COUNT -gt 0 ]; then
             ufbl_log "$UFBL_TAG" "Warning: Skipped $INVALID_COUNT invalid CIDR entries. Examples: ${INVALID_EXAMPLES%*, }"
         fi

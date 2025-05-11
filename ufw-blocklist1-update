@@ -88,7 +88,7 @@ UFBL_FILTERED_LIST=$(
             fi
         fi
         echo "add ${UFBL_TMP_SET_NAME} ${UFBL_ENTRY} -exist"
-    done  < <(grep -E -o "${UFBL_CIDR_REGEX}" "$UFBL_RAW_LIST")
+    echo "$UFBL_RAW_LIST" | grep -E -o "${UFBL_CIDR_REGEX}"
 )
 if [ $INVALID_COUNT -gt 0 ]; then
     ufbl_log "$UFBL_TAG" "Warning: Skipped $INVALID_COUNT invalid CIDR entries. Examples: ${INVALID_EXAMPLES%*, }"

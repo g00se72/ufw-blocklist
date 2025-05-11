@@ -67,32 +67,32 @@ fi
 UFBL_TMP_SET_NAME="$(mktemp -u | cut -f2 -d'.')-tmp"
 
 # Filter the downloaded list
+TEMP_FILTERED_FILE=$(mktemp)
 INVALID_COUNT=0
 INVALID_EXAMPLES=""
 MAX_EXAMPLES=5
-UFBL_FILTERED_LIST=$(
-    #echo "$UFBL_RAW_LIST" | grep -E -o "${UFBL_CIDR_REGEX}" | \
-    while read UFBL_ENTRY; do
-        # Add /32 for single IPs if no subnet mask is present
-        if [[ ! "$UFBL_ENTRY" =~ / ]]; then
-            UFBL_ENTRY="${UFBL_ENTRY}/32"
-        fi
-        # Validate CIDR with ip if available
-        if [ "${UFBL_ENABLE_IP_ROUTE_VALIDATION}" = "yes" ] && command -v ip >/dev/null; then
-            if ! ufbl_validate_cidr_ip_route "$UFBL_ENTRY"; then
-                ((INVALID_COUNT++))
-                if [ $INVALID_COUNT -le $MAX_EXAMPLES ]; then
-                    INVALID_EXAMPLES="$INVALID_EXAMPLES'$UFBL_ENTRY', "
-                fi
-                continue
+echo "$UFBL_RAW_LIST" | grep -E -o "${UFBL_CIDR_REGEX}" | while read -r UFBL_ENTRY; do
+    if [[ ! "$UFBL_ENTRY" =~ / ]]; then
+        UFBL_ENTRY="${UFBL_ENTRY}/32"
+    fi
+    if [ "${UFBL_ENABLE_IP_ROUTE_VALIDATION}" = "yes" ] && command -v ip >/dev/null; then
+        if ! ufbl_validate_cidr_ip_route "$UFBL_ENTRY"; then
+            ((INVALID_COUNT++))
+            if [ $INVALID_COUNT -le $MAX_EXAMPLES ]; then
+                INVALID_EXAMPLES="$INVALID_EXAMPLES'$UFBL_ENTRY', "
             fi
+            continue
         fi
-        echo "add ${UFBL_TMP_SET_NAME} ${UFBL_ENTRY} -exist"
-    echo "$UFBL_RAW_LIST" | grep -E -o "${UFBL_CIDR_REGEX}"
-)
+    fi
+    echo "add ${UFBL_TMP_SET_NAME} ${UFBL_ENTRY} -exist" >> "$TEMP_FILTER_FILE"
+done
+
 if [ $INVALID_COUNT -gt 0 ]; then
     ufbl_log "$UFBL_TAG" "Warning: Skipped $INVALID_COUNT invalid CIDR entries. Examples: ${INVALID_EXAMPLES%*, }"
 fi
+
+UFBL_FILTERED_LIST=$(cat "$TEMP_FILTERED_FILE")
+rm -f "$TEMP_FILTERED_FILE"
 
 # Count the number of entries that will be added after filtering
 # Count lines starting with "add "

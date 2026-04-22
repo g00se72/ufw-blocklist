@@ -22,6 +22,7 @@ fi
 # If you create a script for Blocklist 2, it would use index 2 (UFBL_IPSET_NAME2, etc.)
 UFBL_IPSET_NAME="${UFBL_IPSET_NAME1}"
 UFBL_SEED_FILE="${UFBL_SEED_FILE1}"
+UFBL_URL="${UFBL_URL1}"
 UFBL_MAXELEM_HEADROOM=${UFBL_MAXELEM_HEADROOM1:-$UFBL_DEFAULT_MAXELEM_HEADROOM}
 
 # Specific logger tag for this blocklist script
@@ -46,8 +47,19 @@ start)
     ufbl_log "$UFBL_TAG" "Starting ${UFBL_IPSET_NAME} blocklist initialization."
 
     # --- Blocklist Initialization ---
-    # Check if blocklist seed file exists and security check
+    # Downloaf blocklist seed file exists and security check
     UFBL_FILE_OK=false
+
+    TMP_SEED="${UFBL_SEED_FILE}.tmp"
+    if curl -fsSL "$UFBL_URL" -o "$TMP_SEED"; then
+        mv "$TMP_SEED" "$UFBL_SEED_FILE"
+        chmod 600 "$UFBL_SEED_FILE"
+        ufbl_log "$UFBL_TAG" "Blocklist seed file $UFBL_SEED_FILE updated"
+    else
+        ufbl_log "$UFBL_TAG" "Warning: failed to download seed file, trying to use existing"
+        rm -f "$TMP_SEED"
+    fi
+
     if [ -f "$UFBL_SEED_FILE" ]; then
         # File exists, check its current permissions and ownership
         if [ "$(stat -c %U:%G:%a "$UFBL_SEED_FILE")" != "root:root:600" ]; then

@@ -39,15 +39,15 @@ case "$1" in
 
 start)
     # Check if the required variables got from the config
-    if [ -z "$UFBL_IPSET_NAME" ] || [ -z "$UFBL_SEED_FILE" ]; then
-        ufbl_log "$UFBL_TAG" "Error: Required blocklist variables (UFBL_IPSET_NAME1, UFBL_SEED_FILE1) not set in config." >&2
+    if [ -z "$UFBL_IPSET_NAME" ] || [ -z "$UFBL_SEED_FILE" ] || [ -z "$UFBL_URL" ]; then
+        ufbl_log "$UFBL_TAG" "Error: Required blocklist variables (UFBL_IPSET_NAME1, UFBL_SEED_FILE1, UFBL_URL1) not set in config." >&2
         exit 1
     fi
 
     ufbl_log "$UFBL_TAG" "Starting ${UFBL_IPSET_NAME} blocklist initialization."
 
     # --- Blocklist Initialization ---
-    # Downloaf blocklist seed file exists and security check
+    # Download blocklist seed file and check
     UFBL_FILE_OK=false
 
     TMP_SEED="${UFBL_SEED_FILE}.tmp"
